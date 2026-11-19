@@ -37,6 +37,12 @@ VPN değildir: trafiğiniz başka bir sunucuya gitmez, hızınız düşmez, IP a
 brew tap dikeckaan/dikecdpi
 ```
 
+Homebrew 7 ve sonrası, üçüncü taraf tap'leri bir kez onaylamanızı ister:
+
+```bash
+brew trust dikeckaan/dikecdpi
+```
+
 Masaüstü uygulaması (macOS):
 
 ```bash

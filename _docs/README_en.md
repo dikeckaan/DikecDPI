@@ -37,6 +37,12 @@ It is not a VPN: your traffic does not go through another server, speed is unaff
 brew tap dikeckaan/dikecdpi
 ```
 
+Homebrew 7+ asks you to trust third-party taps once:
+
+```bash
+brew trust dikeckaan/dikecdpi
+```
+
 Desktop app (macOS):
 
 ```bash
