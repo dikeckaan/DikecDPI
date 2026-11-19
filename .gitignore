@@ -1,10 +1,21 @@
-spoof-dpi
-spoof-dpi-*
-spoof-dpi.*
-!*/spoof-dpi/
+spoofdpi
+spoofdpi-*
+spoofdpi.*
+!cmd/spoofdpi/
+!_assets/*
 out/**
-
-/build
+result
 
 .DS_Store
 .idea/
+.direnv/
+.devenv/
+dist/
+COMMIT
+site/
+
+.claude/
+.codex/
+.opencode/
+/AGENTS.md
+/CLAUDE.md

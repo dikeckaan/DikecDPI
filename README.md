@@ -1,74 +1,28 @@
-# SpoofDPI Turkiye
+<p align="center">
+  <img alt="spoofdpi" src="./docs/static/banner.jpg" height="200" />
+</p>
 
-Read in other Languages: [🇹🇷Turkish](https://github.com/renardev/SpoofDPI-Turkiye), [🇬🇧English](https://github.com/renardev/SpoofDPI-Turkiye/blob/main/_docs/README_en.md)
+> [!CAUTION]
+> SpoofDPI is NOT available on iOS or Android. Official binaries are ONLY provided through GitHub and official package managers. DO NOT download SpoofDPI from other sources, as they may contain malware.
 
-Spoof DPI'ın bu sürümü **Türkiye'de** kullanılmak üzere yapılandırılmıştır.
+`spoofdpi` is a simple proxy tool, mainly designed to neutralize the *Deep Packet Inspection (DPI)* techniques that power many internet censorship systems.
 
-![image](https://user-images.githubusercontent.com/45588457/148035986-8b0076cc-fefb-48a1-9939-a8d9ab1d6322.png)
+For more detailed information, please refer to the [Official Documentation](https://spoofdpi.dev).
 
-# Kurulum
-Direkt olarak [releases](https://github.com/renardev/SpoofDPI-Turkiye/releases) bölümünden indirebilir veya
-[Buradan](https://github.com/renardev/SpoofDPI-Turkiye/blob/main/_docs/INSTALL.md) kurulum aşamalarını takip edebilirsiniz.
+[Join our Discord channel](https://discord.gg/k7qMbqhrcH) for discussions (If you can 😅).
 
-# Kullanım
-Programımız Türkiye'ye özel olarak konfigure edildiği için sizin için uygun sürümü direkt olarak başlatarak çalıştırabilirsiniz.
+## 📦 Packaging Status
 
-# Gelişmiş Kullanım
-```
-Kullanım: spoofdpi [seçenekler...]
-  -addr string
-        adresi dinler (varsayılan "127.0.0.1")
-  -debug
-        hata ayıklamayı aktif edeer
-  -dns-addr string
-        dns adresi (varsayılan "77.88.8.8")
-  -dns-ipv4-only
-        sadece sürüm 4 adreslerini dinler
-  -dns-port value
-        dns için port numarası (varsayılan 1253)
-  -enable-doh
-        'dns-over-https' aktif eder
-  -pattern value
-        DPI'yı yalnızca bu regex deseniyle eşleşen paketlerde atlar; birden çok kez verilebilir
-  -port value
-        port (varsayılan 8080)
-  -silent
-        başlangıçta afişi ve sunucu bilgilerini gösterme
-  -system-proxy
-        sistem genelinde proxy aktif et (varsayılan true)
-  -timeout value
-        milisaniye cinsinden zaman aşımı; verilmediğinde zaman aşımı olmaz
-  -v    spoofdpi'nin sürümünü yazdırır; bu, diğer bazı ilgili bilgileri içerebilir
-  -window-size value
-        Parçalanmış istemci dönüşü için bayt sayısı cinsinden yığın boyutu,
-        varsayılan değer DPI'ı atlamazsa daha düşük değerler deneyin;
-        verilmediğinde, istemci dönüş paketi iki parça halinde gönderilecektir:
-        ilk veri paketi için parçalama ve geri kalanı şeklinde
-```
-> Chrome tarayıcısında Hotspot Shield gibi herhangi bir vpn uzantısı kullanıyorsanız,
-  Ayarlar > Eklentiler, bölümüne gidin ve onları devre dışı bırakın.
+<a href="https://repology.org/project/spoofdpi/versions">
+    <img src="https://repology.org/badge/vertical-allrepos/spoofdpi.svg?columns=1" alt="Packaging status">
+</a>
 
-### OSX
-`Spoofdpi`ı çalıştırdığınızda proxy'nizi otomatik olarak ayarlayacaktır
+## ☕ Github Sponsors
+Your sponsorship directly fuels the motivation required for continued project maintenance. If you find spoofdpi valuable, please consider supporting [@xvzc on Github](https://github.com/sponsors/xvzc).
 
-### Linux
-`Spoofdpi`ı çalıştırın ve favori tarayıcınızı proxy seçeneği ile açın
-```bash
-google-chrome --proxy-server="http://127.0.0.1:8080"
-```
+## 💡 Inspirations
+[Green Tunnel](https://github.com/SadeghHayeri/GreenTunnel) by @SadeghHayeri  
+[GoodbyeDPI](https://github.com/ValdikSS/GoodbyeDPI) by @ValdikSS
 
-# Nasıl Çalışır
-### HTTP
- Dünyadaki çoğu web sitesi artık HTTPS'yi desteklediğinden, SpoofDPI HTTP istekleri için Derin Paket Denetimlerini atlamaz, ancak yine de tüm HTTP istekleri için proxy bağlantısı sunar.
-
-### HTTPS
- TLS her handshake işlemini şifrelese de, İstemci dönüş paketinde alan adları hala düz metin olarak gösterilir.
- Başka bir deyişle, başka biri pakete baktığında, paketin nereye gittiğini kolayca tahmin edebilir.
- DPI işlenirken alan adı önemli bilgiler sunabilir ve aslında İstemci dönüş paketini gönderdikten hemen sonra bağlantının engellendiğini görebiliriz.
- Bunu aşmak için bazı yollar denedim ve İstemci dönüş paketini parçalara bölerek gönderdiğimizde yalnızca ilk parçanın denetlendiğini fark ettim.
- SpoofDPI'ın bunu atlamak için yaptığı şey, bir isteğin ilk 1 baytını sunucuya göndermektir,
- ve sonra geri kalanını gönder.
-
-
-# Benzer Projeler
-[GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey) @cagritaskn (Windows)
+## 🔗 See Also
+[DPIBreak](https://github.com/dilluti0n/dpibreak) by @dilluti0n - kernel based circumvention tool for Linux and Windows

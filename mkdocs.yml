@@ -1,0 +1,90 @@
+# Site configuration
+site_name: spoofdpi
+site_author: 'xvzc'
+site_description: 'Lightweight and fast DPI circumvention tool.'
+site_url: https://spoofdpi.dev
+repo_name: 'xvzc/spoofdpi'
+repo_url: https://github.com/xvzc/spoofdpi
+copyright: Copyright © 2025 xvzc. All rights reserved.
+
+extra_css:
+ - style.css
+
+# Theme configuration
+theme:
+  name: material
+  logo: static/logo.png
+  favicon: static/favicon.ico
+  language: en
+  custom_dir: docs/overrides
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+  - media: '(prefers-color-scheme: light)'
+    scheme: default
+    primary: black
+    accent: indigo
+    toggle:
+      icon: material/weather-night
+      name: Switch to dark mode
+  - media: '(prefers-color-scheme: dark)'
+    scheme: slate
+    primary: black
+    accent: indigo
+    toggle:
+      icon: material/weather-sunny
+      name: Switch to light mode
+  features:
+    - toc.follow
+    - navigation.expand
+    - navigation.indexes
+    # - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - content.code.copy
+    - content.code.collapse
+
+# Navigation menu
+nav:
+  - 'Getting Started':
+    - 'Introduction': getting-started/introduction.md
+    - 'Install': getting-started/install.md
+    - 'Quick Start': getting-started/quick-start.md
+  - 'User Guide':
+    - 'Overview': user-guide/overview.md
+    - 'Options':
+      - 'App': user-guide/app.md
+      - 'Connection': user-guide/connection.md
+      - 'DNS': user-guide/dns.md
+      - 'HTTPS': user-guide/https.md
+      - 'UDP': user-guide/udp.md
+      - 'Rules': user-guide/rules.md
+    - 'Configuration Examples': user-guide/examples.md
+    # - 'Geographical Recipes': 
+    #   - 'South Korea': user-guide/configuration-recipes/south-korea.md
+  - 'Developer Guide':
+    - 'Agent Setup': developer-guide/agent-setup.md
+    - 'Build and Run': developer-guide/build-and-run.md
+    - 'Testing': developer-guide/testing.md
+    - 'Code Quality': developer-guide/code-quality.md
+    - 'Commit Messages': developer-guide/commit-messages.md
+    - 'Documentation': developer-guide/documentation.md
+
+# Extensions
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - toc:
+      toc_depth: 2
+      permalink: true
+  - attr_list
+  - md_in_html
+  - pymdownx.blocks.caption
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition

@@ -1,124 +1,97 @@
-name: Release drafter
+name: Release
 
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Target Tag Name (e.g., v1.2.0)'
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
+  id-token: write
+  pull-requests: write
+
+env:
+  GO_VERSION: '1.26'
 
 jobs:
-  draft_release:
+  release-please:
+    if: github.event_name == 'push' && !github.event.repository.fork
+    name: release-please
     runs-on: ubuntu-latest
     outputs:
-      tag_name: ${{ steps.release.outputs.tag_name }}
-    permissions:
-      contents: write
-      pull-requests: write
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name:        ${{ steps.rp.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Read version
-        id: read_version
-        run: |
-          echo "version=$(cat version/VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
-      - name: Print version
-        run: |
-          echo ${{ steps.read_version.outputs.version }}
-      - uses: release-drafter/release-drafter@v6
-        id: release
+      - uses: googleapis/release-please-action@v4
+        id: rp
         with:
-          version: ${{ steps.read_version.outputs.version }}
-          name: v${{ steps.read_version.outputs.version }}
-          tag: v${{ steps.read_version.outputs.version }}
+          config-file: .github/release-please-config.json
+          manifest-file: .manifest.json
+
+  build-and-publish:
+    needs: release-please
+    if: |
+      !github.event.repository.fork && !cancelled() && (
+        (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true') ||
+        github.event_name == 'workflow_dispatch'
+      )
+    name: build-and-publish
+    runs-on: macos-latest
+    env:
+      RELEASE_TAG: ${{ needs.release-please.outputs.tag_name || inputs.tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://get.anchore.io/syft | sudo sh -s -- -b /usr/local/bin
+
+      # v4.0.0
+      - uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
+
+      # Run GoReleaser to build binaries, archives, packages, and SBOMs.
+      - name: Build Artifacts
+        # v6.4.0
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean --skip=publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ env.RELEASE_TAG }}
 
-  build_and_publish:
-    runs-on: ubuntu-latest
-    needs: draft_release
-    name: Release linux/amd64
-    permissions:
-      contents: write
-      pull-requests: write
-    env: 
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG_NAME: ${{ needs.draft_release.outputs.tag_name }}
-      CGO_ENABLED: 0
-    steps:
-    - uses: actions/checkout@v4
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: 1.21
-    - name: Display Go version
-      run: go version
+      # Upload all generated artifacts to the release.
+      # GitHub auto-marks this as latest by semver rules (no prerelease/draft).
+      - name: Upload Artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ env.RELEASE_TAG }}"
 
-    - name: darwin/amd64
-      env: 
-        GOOS: darwin
-        GOARCH: amd64
-      run: |
-        go build -ldflags="-w -s" github.com/xvzc/SpoofDPI/cmd/spoofdpi 
-        tar -zcvf "spoofdpi-$GOOS-$GOARCH.tar.gz" ./spoofdpi && rm -rf ./spoofdpi
-        gh release upload $TAG_NAME "./spoofdpi-$GOOS-$GOARCH.tar.gz"
+          echo "Uploading artifacts to release: $TAG_NAME"
 
-    - name: darwin/arm64
-      env: 
-        GOOS: darwin
-        GOARCH: arm64
-      run: |
-        go build -ldflags="-w -s" github.com/xvzc/SpoofDPI/cmd/spoofdpi 
-        tar -zcvf "spoofdpi-$GOOS-$GOARCH.tar.gz" ./spoofdpi && rm -rf ./spoofdpi
-        gh release upload $TAG_NAME "./spoofdpi-$GOOS-$GOARCH.tar.gz"
-
-    - name: linux/amd64
-      env: 
-        GOOS: linux
-        GOARCH: amd64
-      run: |
-        go build -ldflags="-w -s" github.com/xvzc/SpoofDPI/cmd/spoofdpi 
-        tar -zcvf "spoofdpi-$GOOS-$GOARCH.tar.gz" ./spoofdpi && rm -rf ./spoofdpi
-        gh release upload $TAG_NAME "./spoofdpi-$GOOS-$GOARCH.tar.gz"
-
-    - name: linux/arm
-      env: 
-        GOOS: linux
-        GOARCH: arm
-      run: |
-        go build -ldflags="-w -s" github.com/xvzc/SpoofDPI/cmd/spoofdpi 
-        tar -zcvf "spoofdpi-$GOOS-$GOARCH.tar.gz" ./spoofdpi && rm -rf ./spoofdpi
-        gh release upload $TAG_NAME "./spoofdpi-$GOOS-$GOARCH.tar.gz"
-
-    - name: linux/arm64
-      env: 
-        GOOS: linux
-        GOARCH: arm64
-      run: |
-        go build -ldflags="-w -s" github.com/xvzc/SpoofDPI/cmd/spoofdpi 
-        tar -zcvf "spoofdpi-$GOOS-$GOARCH.tar.gz" ./spoofdpi && rm -rf ./spoofdpi
-        gh release upload $TAG_NAME "./spoofdpi-$GOOS-$GOARCH.tar.gz"
-
-    - name: linux/mips
-      env: 
-        GOOS: linux
-        GOARCH: mips
-      run: |
-        go build -ldflags="-w -s" github.com/xvzc/SpoofDPI/cmd/spoofdpi 
-        tar -zcvf "spoofdpi-$GOOS-$GOARCH.tar.gz" ./spoofdpi && rm -rf ./spoofdpi
-        gh release upload $TAG_NAME "./spoofdpi-$GOOS-$GOARCH.tar.gz"
-
-    - name: linux/mipsle
-      env: 
-        GOOS: linux
-        GOARCH: mipsle
-      run: |
-        go build -ldflags="-w -s" github.com/xvzc/SpoofDPI/cmd/spoofdpi 
-        tar -zcvf "spoofdpi-$GOOS-$GOARCH.tar.gz" ./spoofdpi && rm -rf ./spoofdpi
-        gh release upload $TAG_NAME "./spoofdpi-$GOOS-$GOARCH.tar.gz"
-
-    - name: windows/amd64
-      env: 
-        GOOS: windows
-        GOARCH: amd64
-      run: |
-        go build -ldflags="-w -s" -o "spoofdpi-$GOOS-$GOARCH.exe" github.com/xvzc/SpoofDPI/cmd/spoofdpi
-        gh release upload $TAG_NAME "./spoofdpi-$GOOS-$GOARCH.exe"
-
+          gh release upload "$TAG_NAME" \
+            dist/*.tar.gz \
+            dist/*.json \
+            dist/*.deb \
+            dist/*.apk \
+            dist/*.rpm \
+            dist/*.zst \
+            dist/checksums.txt \
+            --clobber

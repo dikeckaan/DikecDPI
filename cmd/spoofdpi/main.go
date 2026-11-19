@@ -2,66 +2,404 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
-	"github.com/xvzc/SpoofDPI/util/log"
-
-	"github.com/xvzc/SpoofDPI/proxy"
-	"github.com/xvzc/SpoofDPI/util"
-	"github.com/xvzc/SpoofDPI/version"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/xvzc/spoofdpi/internal/cache"
+	"github.com/xvzc/spoofdpi/internal/config"
+	"github.com/xvzc/spoofdpi/internal/desync"
+	"github.com/xvzc/spoofdpi/internal/dns"
+	"github.com/xvzc/spoofdpi/internal/logging"
+	"github.com/xvzc/spoofdpi/internal/netutil"
+	"github.com/xvzc/spoofdpi/internal/packet"
+	"github.com/xvzc/spoofdpi/internal/rule"
+	"github.com/xvzc/spoofdpi/internal/server"
+	"github.com/xvzc/spoofdpi/internal/server/http"
+	"github.com/xvzc/spoofdpi/internal/server/socks5"
+	"github.com/xvzc/spoofdpi/internal/server/tun"
+	"github.com/xvzc/spoofdpi/internal/session"
 )
 
+// Version and commit are set at build time.
+var (
+	version = "dev"
+	commit  = "unknown"
+	build   = "unknown"
+)
+
+// SwitchableWriter lets the log destination be swapped while connection
+// goroutines are already logging, so access to target is synchronized.
+type SwitchableWriter struct {
+	mu     sync.RWMutex
+	target io.Writer
+}
+
+func (sw *SwitchableWriter) SetWriter(w io.Writer) {
+	sw.mu.Lock()
+	sw.target = w
+	sw.mu.Unlock()
+}
+
+func (sw *SwitchableWriter) Write(p []byte) (n int, err error) {
+	sw.mu.RLock()
+	w := sw.target
+	sw.mu.RUnlock()
+	return w.Write(p)
+}
+
+type DelayedWriter struct {
+	writer io.Writer
+	delay  time.Duration
+}
+
+// DelayedWriter is stateless, so value receiver is technically fine,
+// but pointer receiver is preferred for consistency in Go.
+func (dw *DelayedWriter) Write(p []byte) (n int, err error) {
+	if dw.delay > 0 {
+		time.Sleep(dw.delay)
+	}
+	return dw.writer.Write(p)
+}
+
 func main() {
-	args := util.ParseArgs()
-	if args.Version {
-		version.PrintVersion()
-		os.Exit(0)
+	cmd := config.CreateCommand(runApp, version, commit, build)
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		fmt.Println("application failed to start")
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
+}
 
-	config := util.GetConfig()
-	config.Load(args)
+func runApp(mainctx context.Context, configDir string, cfg *config.Config) (err error) {
+	appctx, cancel := signal.NotifyContext(
+		session.WithNewTraceID(mainctx),
+		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP,
+	)
+	defer cancel()
 
-	log.InitLogger(config)
-	ctx := util.GetCtxWithScope(context.Background(), "MAIN")
-	logger := log.GetCtxLogger(ctx)
-
-	pxy := proxy.New(config)
-
-	if !config.Silent {
-		util.PrintColoredBanner()
-	}
-
-	if config.SystemProxy {
-		if err := util.SetOsProxy(uint16(config.Port)); err != nil {
-			logger.Fatal().Msgf("error while changing proxy settings: %s", err)
+	var writer io.Writer
+	// Channel to capture critical TUI execution failures
+	if !cfg.App.NoTUI {
+		if err := startTUI(cancel); err != nil {
+			return fmt.Errorf("failed to start tui: %w", err)
 		}
-		defer func() {
-			if err := util.UnsetOsProxy(); err != nil {
-				logger.Fatal().Msgf("error while disabling proxy: %s", err)
-			}
-		}()
+		writer = TUIWriter{}
+	} else {
+		writer = os.Stdout
 	}
 
-	go pxy.Start(context.Background())
+	dw := &DelayedWriter{
+		writer: writer,
+		delay:  29 * time.Millisecond,
+	}
+	sw := &SwitchableWriter{target: dw}
 
-	// Handle signals
-	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
+	logging.SetGlobalLogger(appctx, cfg.App.LogLevel, sw)
+	logger := log.Logger.With().Ctx(appctx).Logger()
 
-	signal.Notify(
-		sigs,
-		syscall.SIGKILL,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-		syscall.SIGHUP)
-
-	go func() {
-		_ = <-sigs
-		done <- true
+	// In TUI mode the alt-screen has already been claimed by startTUI.
+	// Letting a setup error bubble up via `return err` would land in
+	// main's fmt.Println + os.Exit(1) path, which tears down the alt
+	// screen before the user can read what went wrong.
+	//
+	// Catch the error here instead: log it through the configured logger
+	// so it shows up in the TUI, park on appctx until the user dismisses
+	// with Ctrl+C, and clear `err` so main exits cleanly.
+	//
+	// Headless mode keeps the original behavior — the error propagates
+	// to main, which prints "application failed to start" to stderr and
+	// exits with status 1.
+	defer func() {
+		if err == nil || cfg.App.NoTUI {
+			return
+		}
+		logger.Error().Err(err).Msg("application failed to start")
+		<-appctx.Done()
+		err = nil
 	}()
 
-	<-done
+	logger.Info().Str("version", version).Msg("spoofdpi")
+	if configDir != "" {
+		logger.Info().
+			Str("dir", configDir).
+			Msgf("loaded config file")
+	} else {
+		logger.Warn().
+			Msg("config file not found")
+		logger.Warn().
+			Msg(" please try 'sudo -E spoofdpi' if you expect a configuration to be loaded")
+	}
+
+	for _, m := range config.WarnMsgs {
+		logger.Warn().Msg(m)
+	}
+
+	logger.Info().Str("mode", cfg.App.Mode.String()).Msgf("app")
+
+	srv, err := createServer(appctx, logger, cfg)
+	if err != nil {
+		return fmt.Errorf("create server: %w", err)
+	}
+
+	logger.Info().Msg("https info")
+	logger.Info().
+		Str("split-mode", cfg.HTTPS.SplitMode.String()).
+		Uint8("chunk-size", uint8(cfg.HTTPS.ChunkSize)).
+		Bool("disorder", cfg.HTTPS.Disorder).
+		Msg(" split")
+
+	logger.Info().
+		Uint8("count", uint8(cfg.HTTPS.FakeCount)).
+		Msg(" fake")
+
+	if cfg.Conn.DNSTimeout > 0 {
+		logger.Info().
+			Str("value", fmt.Sprintf("%dms", cfg.Conn.DNSTimeout.Milliseconds())).
+			Msgf("dns connection timeout")
+	}
+	if cfg.Conn.TCPTimeout > 0 {
+		logger.Info().
+			Str("value", fmt.Sprintf("%dms", cfg.Conn.TCPTimeout.Milliseconds())).
+			Msgf("tcp connection timeout")
+	}
+	if cfg.Conn.UDPIdleTimeout > 0 {
+		logger.Info().
+			Str("value", fmt.Sprintf("%dms", cfg.Conn.UDPIdleTimeout.Milliseconds())).
+			Msgf("udp idle timeout")
+	}
+
+	time.Sleep(300 * time.Millisecond)
+	if err := srv.ListenAndServe(appctx); err != nil {
+		return fmt.Errorf("listen and serve: %w", err)
+	}
+	logger.Info().Msgf("server started on %s", srv.Addr())
+	if cfg.App.AutoConfigureNetwork {
+		if stateFile, acErr := srv.SetupNetworkJobs(appctx); acErr != nil {
+			// Non-fatal: server is running, just couldn't auto-set
+			// system proxy. Log and continue rather than tearing down.
+			logger.Error().Err(acErr).Msg("failed to set system network config")
+		} else if acErr := server.ApplyJobs(logger, stateFile); acErr != nil {
+			logger.Error().Err(acErr).Msg("failed to apply network config")
+		} else {
+			defer server.ResetJobs(logger, stateFile)
+		}
+	}
+
+	sw.SetWriter(writer)
+
+	<-appctx.Done()
+
+	return nil
+}
+
+func setupPcapIO(
+	ctx context.Context,
+	logger zerolog.Logger,
+	route *netutil.Route,
+	cfg *config.Config,
+) (tcpSniffer, udpSniffer packet.Sniffer, tcpWriter, udpWriter packet.Writer, err error) {
+	if !cfg.NeedsPcap() {
+		return
+	}
+
+	resolveCtx, resolveCancel := context.WithTimeout(ctx, 10*time.Second)
+	gatewayMAC, rErr := packet.ResolveGatewayMAC(
+		resolveCtx,
+		&route.Iface,
+		route.LocalIP,
+		route.Gateway,
+	)
+	resolveCancel()
+	if rErr != nil {
+		err = rErr
+		return
+	}
+
+	pktLogger := logging.WithScope(logger, "pkt")
+	hopCache := cache.NewLRUCache[netutil.IPKey, uint8](16, 8192, nil)
+
+	logger.Info().Msg("network info")
+	logger.Info().
+		Str("name", route.Iface.Name).
+		Str("mac", route.Iface.HardwareAddr.String()).
+		Msg(" interface")
+	logger.Info().
+		Str("mac", gatewayMAC.String()).
+		Msg(" gateway")
+
+	if cfg.NeedsPcapTCP() {
+		tcpHandle, hErr := packet.NewHandle(&route.Iface)
+		if hErr != nil {
+			err = fmt.Errorf("tcp pcap handle on %s: %w", route.Iface.Name, hErr)
+			return
+		}
+		tcpSniffer = packet.NewTCPSniffer(
+			pktLogger,
+			tcpHandle,
+			hopCache,
+			&cfg.RuntimeConfig,
+		)
+		tcpWriter = packet.NewTCPWriter(pktLogger, tcpHandle, &route.Iface, gatewayMAC)
+		tcpSniffer.StartCapturing()
+	}
+
+	if cfg.NeedsPcapUDP() {
+		udpHandle, hErr := packet.NewHandle(&route.Iface)
+		if hErr != nil {
+			err = fmt.Errorf("udp pcap handle on %s: %w", route.Iface.Name, hErr)
+			return
+		}
+		udpSniffer = packet.NewUDPSniffer(
+			pktLogger,
+			udpHandle,
+			hopCache,
+			&cfg.RuntimeConfig,
+		)
+		udpWriter = packet.NewUDPWriter(pktLogger, udpHandle, &route.Iface, gatewayMAC)
+		udpSniffer.StartCapturing()
+	}
+
+	return
+}
+
+func createServer(
+	appctx context.Context,
+	logger zerolog.Logger,
+	cfg *config.Config,
+) (server.Server, error) {
+	// --- Rule set ---
+	ruleSet := rule.NewRuleSet()
+	for _, r := range cfg.Rules {
+		if err := ruleSet.Add(&r); err != nil {
+			return nil, err
+		}
+	}
+
+	// --- DNS resolver ---
+	resolver := dns.NewClient(
+		logging.WithScope(logger, "dns"),
+		&cfg.RuntimeConfig,
+	)
+
+	// Clean up stale network state before route discovery so a crashed TUN
+	// session does not leave the routing table in a state that obscures the
+	// real default route.
+	server.ResetJobs(logger, tun.StateFile)
+	server.ResetJobs(logger, http.StateFile)
+	server.ResetJobs(logger, socks5.StateFile)
+
+	var defaultRoute *netutil.Route
+	if cfg.NeedsRoute() {
+		var err error
+		defaultRoute, err = netutil.DiscoverRoute(cfg.App.Gateway)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find default route: %w", err)
+		}
+	} else if cfg.App.Gateway != nil {
+		logger.Warn().
+			Str("gateway", cfg.App.Gateway.String()).
+			Msg("gateway is ignored; only fake packets and tun mode use it")
+	}
+
+	tcpSniffer, udpSniffer, tcpWriter, udpWriter, err := setupPcapIO(
+		appctx,
+		logger,
+		defaultRoute,
+		cfg,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsDesyncer := desync.NewTLSDesyncer(
+		logging.WithScope(logger, "dsn"),
+		tcpWriter,
+		tcpSniffer,
+	)
+	udpDesyncer := desync.NewUDPDesyncer(
+		logging.WithScope(logger, "dsn"),
+		udpWriter,
+		udpSniffer,
+	)
+
+	switch cfg.App.Mode {
+	case config.AppModeHTTP:
+		return http.NewHTTPProxy(
+			logging.WithScope(logger, "srv"),
+			http.NewHTTPHandler(logging.WithScope(logger, "hnd")),
+			http.NewHTTPSHandler(
+				logging.WithScope(logger, "hnd"),
+				tlsDesyncer,
+				&cfg.RuntimeConfig,
+			),
+			resolver,
+			ruleSet,
+			cfg.App.ListenAddr,
+			&cfg.RuntimeConfig,
+		), nil
+
+	case config.AppModeSOCKS5:
+		udpPool := netutil.NewConnRegistry[netutil.NATKey](4096, 60*time.Second)
+		udpPool.RunCleanupLoop(appctx)
+		return socks5.NewSOCKS5Proxy(
+			logging.WithScope(logger, "srv"),
+			socks5.NewConnectHandler(
+				logging.WithScope(logger, "hnd"),
+				tlsDesyncer,
+				cfg.App.ListenAddr,
+				&cfg.RuntimeConfig,
+			),
+			socks5.NewBindHandler(logging.WithScope(logger, "hnd")),
+			socks5.NewUdpAssociateHandler(
+				logging.WithScope(logger, "hnd"),
+				udpPool,
+				udpDesyncer,
+				&cfg.RuntimeConfig,
+			),
+			resolver,
+			ruleSet,
+			cfg.App.ListenAddr,
+			&cfg.RuntimeConfig,
+		), nil
+
+	case config.AppModeTUN:
+		logger.Info().
+			Str("interface", defaultRoute.Iface.Name).
+			Str("gateway", defaultRoute.Gateway.String()).
+			Msg("determined default interface and gateway")
+		sysNet, err := tun.NewTUNSystemNetwork(
+			logging.WithScope(logger, "sys"),
+			defaultRoute,
+			cfg.App.FreebsdFIB,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create sysnet: %w", err)
+		}
+		return tun.NewTUNServer(
+			logging.WithScope(logger, "srv"),
+			tun.NewTCPHandler(
+				logging.WithScope(logger, "hnd"),
+				tlsDesyncer,
+				ruleSet,
+				&cfg.RuntimeConfig,
+			),
+			tun.NewUDPHandler(
+				logging.WithScope(logger, "hnd"),
+				udpDesyncer,
+				ruleSet,
+				&cfg.RuntimeConfig,
+			),
+			sysNet,
+		), nil
+
+	default:
+		return nil, fmt.Errorf("unknown server mode: %s", cfg.App.Mode)
+	}
 }
