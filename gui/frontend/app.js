@@ -135,9 +135,9 @@ function mainView() {
         ${nav}
         <div class="grow"></div>
         <div class="netcard">
-          <span class="eyebrow">Proxy</span>
-          <span style="font-size:13px;font-weight:500">${esc(s.options.listenAddr)}</span>
-          <span class="mono muted" style="font-size:11px">${s.status.systemProxy ? "Sistem proxy’si ayarlı" : (s.status.running ? "Tarayıcıyı elle yönlendirin" : "Kapalı")}</span>
+          <span class="eyebrow">${s.options.appMode === "tun" ? "TUN" : "Proxy"}</span>
+          <span style="font-size:13px;font-weight:500">${s.options.appMode === "tun" ? "Tüm sistem" : esc(s.options.listenAddr)}</span>
+          <span class="mono muted" style="font-size:11px">${s.options.appMode === "tun" ? (s.status.running ? "utun arayüzü aktif" : "Kapalı") : s.status.systemProxy ? "Sistem proxy’si ayarlı" : (s.status.running ? "Tarayıcıyı elle yönlendirin" : "Kapalı")}</span>
         </div>
       </nav>
       <main class="main">${page}</main>
@@ -171,7 +171,7 @@ function panelPage() {
           return `<div class="host"><span class="h" title="${esc(h.host)}">${esc(h.host)}</span><span class="bar" aria-hidden="true">${segs}</span><span class="n">${h.requests} istek</span></div>`;
         }).join("");
       })()
-    : `<div class="empty">${on ? "Henüz trafik yok. Tarayıcıda bir site açtığınızda burada görünecek." : "Koruma kapalı."}</div>`;
+    : `<div class="empty">${on && s.options.appMode === "tun" ? "TUN modunda bağlantı ayrıntıları Kayıt sayfasında." : on ? "Henüz trafik yok. Tarayıcıda bir site açtığınızda burada görünecek." : "Koruma kapalı."}</div>`;
 
   return `${banner}
   <div class="hero">
@@ -186,7 +186,9 @@ function panelPage() {
     <div class="hero-text">
       <span class="tag" style="color:${on ? accent : "var(--muted)"}">${on ? "● Aktif · " + since(st.since) : "○ Kapalı"}</span>
       <h1>${on ? "Bağlantı serbest." : "Koruma kapalı."}</h1>
-      <p>${on
+      <p>${s.options.appMode === "tun"
+        ? (on ? "TUN modu: tüm sistem trafiği Dikec DPI’dan geçiyor; proxy ayarı tanımayan uygulamalar dahil." : "TUN modu seçili. Başlatırken macOS yönetici izni ister; durdurduğunuzda yönlendirmeler geri alınır.")
+        : on
         ? `Proxy ${esc(st.addr)} adresinde. Engelli siteler parçalanmış ClientHello ile açılıyor; diğer trafik olduğu gibi geçiyor.`
         : "Açtığınızda sistem proxy’si ayarlanır, kapattığınızda eski ayarlarınız geri yüklenir."}</p>
       <div class="row" style="margin-top:6px">
@@ -338,7 +340,8 @@ function settingsPage() {
     <h2>Bağlantı</h2>
     <div class="form">
       <label class="k" for="o-listen">Dinleme adresi</label><input type="text" id="o-listen" value="${esc(o.listenAddr)}" spellcheck="false">
-      <label class="k" for="o-mode">Proxy türü</label><select id="o-mode">${opt("http", o.appMode || "http", "HTTP (önerilen)")}${opt("socks5", o.appMode, "SOCKS5 (deneysel)")}</select>
+      <label class="k" for="o-mode">Proxy türü</label><select id="o-mode">${opt("http", o.appMode || "http", "HTTP proxy (önerilen)")}${opt("socks5", o.appMode, "SOCKS5 proxy (deneysel)")}${opt("tun", o.appMode, "TUN · tüm sistem (yönetici izni)")}</select>
+      <span class="hint">TUN, proxy ayarını tanımayan uygulamalar ve oyunlar dahil tüm trafiği yönlendirir. Başlatırken macOS yönetici şifrenizi ister; sahte paket kullanan profiller yalnızca bu modda çalışır. Upstream’de deneysel.</span>
       <label class="k">Sistem proxy’sini ayarla</label><div>${sw("systemProxy", o.systemProxy, "Sistem proxy’sini ayarla")}</div>
       <span class="hint">macOS’ta tüm uygulamalar Dikec DPI’dan geçer. Kapalıysa tarayıcınızı elle ${esc(o.listenAddr)} adresine yönlendirin.</span>
       <label class="k">IPv6 adresleri</label><div>${sw("ipv6", o.ipv6, "IPv6 adresleri")}</div>
@@ -383,7 +386,7 @@ function trayView() {
       ${glyph(s.error && on ? "warn" : on ? "on" : "off", on ? "var(--accent)" : "#6E7582", 34)}
       <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0">
         <span class="ttl">${on ? "Bağlantı serbest" : "Koruma kapalı"}</span>
-        <span class="mono" style="font-size:11px;color:${on ? "var(--accent)" : "var(--muted)"}">${on ? "● aktif · " + since(s.status.since) : "○ kapalı"}</span>
+        <span class="mono" style="font-size:11px;color:${on ? "var(--accent)" : "var(--muted)"}">${on ? "● aktif · " + since(s.status.since) : "○ kapalı"}${s.options.appMode === "tun" ? " · TUN" : ""}</span>
       </div>
       <button class="switch" role="switch" aria-checked="${on}" aria-label="Korumayı aç veya kapat" data-act="toggle"><span></span></button>
     </div>
@@ -475,6 +478,8 @@ async function act(name, arg, el) {
         ipv6: sw("ipv6"),
         dnsCache: sw("dnsCache"),
       });
+      ui.logs = [];
+      ui.logSeq = 0;
       toast("Ayarlar kaydedildi.", true);
       await refresh(true);
       break;
@@ -536,6 +541,7 @@ async function pollLogs() {
   try {
     const more = await Call.ByName("main.App.Logs", ui.logSeq);
     if (more?.length) {
+      if (more[0].seq <= ui.logSeq) ui.logs = []; // source restarted
       ui.logs.push(...more);
       ui.logSeq = more[more.length - 1].seq;
       if (ui.logs.length > 1500) ui.logs = ui.logs.slice(-1500);

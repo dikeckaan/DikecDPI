@@ -16,6 +16,7 @@ import (
 type App struct {
 	mu       sync.Mutex
 	eng      *engine.Engine
+	tun      *tunRunner
 	st       *persisted
 	scanning bool
 	cancel   context.CancelFunc
@@ -29,7 +30,27 @@ type App struct {
 }
 
 func NewApp() *App {
-	return &App{eng: engine.New(), st: loadState()}
+	return &App{eng: engine.New(), tun: newTunRunner(), st: loadState()}
+}
+
+func (a *App) isTunLocked() bool { return a.st.Options.AppMode == "tun" }
+
+// statusLocked reports whichever backend is active: the in-process proxy or
+// the root TUN core.
+func (a *App) statusLocked() engine.Status {
+	if a.tun.Running() {
+		return a.tun.Status(a.st.Options)
+	}
+	return a.eng.Status()
+}
+
+func (a *App) running() bool {
+	return a.tun.Running() || a.eng.Status().Running
+}
+
+func (a *App) stopAllLocked() {
+	a.tun.Stop()
+	a.eng.Stop()
 }
 
 // ---- data returned to the UI ----
@@ -99,7 +120,7 @@ func (a *App) GetState() StateView {
 	for i, p := range ps {
 		views[i] = view(p)
 	}
-	st := a.eng.Status()
+	st := a.statusLocked()
 	errMsg := a.lastErr
 	if errMsg == "" {
 		errMsg = st.LastError
@@ -125,7 +146,7 @@ func (a *App) GetState() StateView {
 // unblockedLocked counts blocked sites (per the last scan) that were
 // actually used through the proxy in this session.
 func (a *App) unblockedLocked() int {
-	if a.st.LastScan == nil || !a.eng.Status().Running {
+	if a.st.LastScan == nil || !a.eng.Status().Running || a.isTunLocked() {
 		return 0
 	}
 	n := 0
@@ -154,6 +175,20 @@ func (a *App) Start() error {
 }
 
 func (a *App) startLocked() error {
+	if a.isTunLocked() {
+		if a.eng.Status().Running {
+			a.eng.Stop()
+		}
+		if err := a.tun.Start(a.selectedLocked(), a.st.Options); err != nil {
+			a.lastErr = err.Error()
+			return err
+		}
+		a.lastErr = ""
+		return nil
+	}
+	if a.tun.Running() {
+		a.tun.Stop()
+	}
 	if a.eng.Status().Running {
 		return nil
 	}
@@ -183,13 +218,13 @@ func friendlyStartError(err error, addr string) string {
 
 func (a *App) Stop() {
 	a.mu.Lock()
-	a.eng.Stop()
+	a.stopAllLocked()
 	a.mu.Unlock()
 	a.changed()
 }
 
 func (a *App) Toggle() error {
-	if a.eng.Status().Running {
+	if a.running() {
 		a.Stop()
 		return nil
 	}
@@ -197,10 +232,10 @@ func (a *App) Toggle() error {
 }
 
 func (a *App) restartIfRunningLocked() error {
-	if !a.eng.Status().Running {
+	if !a.running() {
 		return nil
 	}
-	a.eng.Stop()
+	a.stopAllLocked()
 	return a.startLocked()
 }
 
@@ -223,8 +258,10 @@ func (a *App) SaveCustomProfile(p engine.Profile) error {
 	p.ID, p.Name, p.Region = "custom", "Özel", "Özel"
 	p.Description = "Elle düzenlenmiş ayar."
 	p.Verified = false
-	if _, err := engine.BuildConfig(p, a.st.Options); err != nil {
-		return err
+	if a.st.Options.AppMode != "tun" {
+		if _, err := engine.BuildConfig(p, a.st.Options); err != nil {
+			return err
+		}
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -237,8 +274,10 @@ func (a *App) SaveCustomProfile(p engine.Profile) error {
 }
 
 func (a *App) SaveOptions(o engine.Options) error {
-	if _, err := engine.BuildConfig(engine.Presets()[0], o); err != nil {
-		return err
+	if o.AppMode != "tun" {
+		if _, err := engine.BuildConfig(engine.Presets()[0], o); err != nil {
+			return err
+		}
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -355,7 +394,7 @@ func (a *App) ApplyAuto() error {
 	}
 	a.st.SelectedID = a.st.AutoProfile.ID
 	_ = a.st.save()
-	a.eng.Stop()
+	a.stopAllLocked()
 	err := a.startLocked()
 	a.mu.Unlock()
 	a.changed()
@@ -371,7 +410,15 @@ func (a *App) DismissFirstRun() {
 
 // ---- observation ----
 
-func (a *App) Logs(after uint64) []engine.LogEntry { return a.eng.Logs(after) }
+func (a *App) Logs(after uint64) []engine.LogEntry {
+	a.mu.Lock()
+	tun := a.isTunLocked()
+	a.mu.Unlock()
+	if tun {
+		return a.tun.Logs(after)
+	}
+	return a.eng.Logs(after)
+}
 
 func (a *App) Hosts(limit int) []engine.HostStat { return a.eng.Hosts(limit) }
 
@@ -392,6 +439,7 @@ func (a *App) Quit() {
 // ServiceShutdown restores the network settings when the app exits.
 func (a *App) ServiceShutdown() error {
 	a.CancelScan()
+	a.tun.Stop()
 	a.eng.Stop()
 	return nil
 }

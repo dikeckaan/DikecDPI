@@ -24,10 +24,11 @@ It is not a VPN: your traffic does not go through another server, speed is unaff
 - **⚡ Auto Bypass.** One click scans your network. It first detects which sites are blocked, then tries 6 DNS resolvers and 17+ fragmentation strategies with real, certificate-verified connections, and saves the fastest working combination. Usually about 10 seconds. It never touches your system settings while scanning.
 - **✂️ TLS record splitting (`tlsrec`).** A new technique in this release: the ClientHello is split into several TLS records in the middle of the host name (RFC 8446 §5.1). It works even against DPI that reassembles TCP segments. In live tests in Türkiye it opened every blocked test site.
 - **🌍 Country presets.** Türkiye, Russia, Kazakhstan, Iran, Gulf/Egypt/Pakistan, India/Indonesia, China and generic profiles. The Türkiye presets are verified on a real network; the others are starting points based on known DPI behaviour, to be confirmed with Auto Bypass on your own network.
+- **🌐 Proxy or TUN.** HTTP/SOCKS5 proxy or TUN mode. TUN routes all system traffic, including apps and games that ignore proxy settings; in the desktop app it is one click away (macOS administrator prompt) and restores the routes when stopped.
 - **🖥️ Menu bar app.** One-click on/off and profile switching. Live connection list, scan matrix and logs. The icon shows state through the position of its slices: aligned = off, offset = active.
 - **🔒 Encrypted DNS.** UDP, DNS-over-HTTPS (Cloudflare, Google, Quad9) or the system resolver. The Türkiye default is Yandex DNS on its alternative port (`77.88.8.8:1253`), because ISPs can hijack port 53.
 - **🛟 Safe exit.** Your system proxy settings are restored on quit. Even after a crash, the next launch cleans up leftover settings, so your internet is never left broken.
-- **Plus everything from the core:** HTTP, SOCKS5 and TUN (system-wide) modes, per-domain rules, TOML config file, fake packet / TTL tricks (with root), UDP support, DNS cache.
+- **Plus everything from the core:** per-domain rules, TOML config file, fake packet / TTL tricks (with root), UDP support, DNS cache.
 
 ## Installation
 

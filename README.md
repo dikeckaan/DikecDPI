@@ -24,10 +24,11 @@ VPN değildir: trafiğiniz başka bir sunucuya gitmez, hızınız düşmez, IP a
 - **⚡ Otomatik Bypass.** Tek tıkla ağınızı tarar. Önce hangi sitelerin engelli olduğunu tespit eder, ardından 6 DNS sunucusunu ve 17+ parçalama stratejisini gerçek, sertifika doğrulamalı bağlantılarla dener ve en hızlı çalışan kombinasyonu kaydeder. Genelde 10 saniye sürer, sistem ayarlarınıza dokunmaz.
 - **✂️ TLS kayıt bölme (`tlsrec`).** Bu sürüme özel yeni teknik: ClientHello'yu alan adının ortasından birden fazla TLS kaydına böler (RFC 8446 §5.1). TCP parçalarını birleştiren gelişmiş DPI'lara karşı bile çalışır. Türkiye'deki canlı testlerde engelli sitelerin tamamını açtı.
 - **🌍 Hazır ülke profilleri.** Türkiye, Rusya, Kazakistan, İran, Körfez/Mısır/Pakistan, Hindistan/Endonezya, Çin ve genel profiller. Türkiye profilleri gerçek ağda doğrulandı; diğerleri bilinen DPI davranışına göre başlangıç noktasıdır ve Otomatik Bypass ile kendi ağınızda doğrulanır.
+- **🌐 Proxy veya TUN.** HTTP/SOCKS5 proxy ya da TUN modu. TUN modu proxy ayarını tanımayan uygulamalar ve oyunlar dahil tüm sistem trafiğini yönlendirir; masaüstü uygulamasından tek tıkla, macOS yönetici izniyle açılır ve durdurunca yönlendirmeleri geri alır.
 - **🖥️ Menü çubuğu uygulaması.** Tek tıkla aç/kapat ve profil değiştirme. Canlı bağlantı listesi, tarama matrisi ve kayıtlar. Simge durumu dilimlerin konumuyla gösterir: hizalı = kapalı, kayık = aktif.
 - **🔒 Şifreli DNS.** UDP, DNS-over-HTTPS (Cloudflare, Google, Quad9) veya sistem DNS'i. Türkiye için varsayılan Yandex DNS'in alternatif portu (`77.88.8.8:1253`), çünkü 53. port operatörlerce ele geçirilebiliyor.
 - **🛟 Güvenli kapanış.** Çıkışta sistem proxy ayarlarınız geri yüklenir. Uygulama çökse bile bir sonraki açılışta kalıntı ayarları temizler, interneti kesik bırakmaz.
-- **Ve çekirdekten gelenler:** HTTP, SOCKS5 ve TUN (sistem geneli) modları, alan adına göre kurallar, TOML yapılandırma dosyası, sahte paket / TTL teknikleri (root ile), UDP desteği, DNS önbelleği.
+- **Ve çekirdekten gelenler:** alan adına göre kurallar, TOML yapılandırma dosyası, sahte paket / TTL teknikleri (root ile), UDP desteği, DNS önbelleği.
 
 ## Kurulum
 

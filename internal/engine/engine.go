@@ -16,7 +16,6 @@ import (
 	"github.com/xvzc/spoofdpi/internal/server"
 	"github.com/xvzc/spoofdpi/internal/server/http"
 	"github.com/xvzc/spoofdpi/internal/server/socks5"
-	"github.com/xvzc/spoofdpi/internal/server/tun"
 	"github.com/xvzc/spoofdpi/internal/session"
 )
 
@@ -159,12 +158,13 @@ func (e *Engine) stopLocked() {
 	logger.Info().Msg("Dikec DPI durduruldu")
 }
 
-// CleanupStaleState resets network settings left behind by a crashed run.
+// CleanupStaleState resets system proxy settings left behind by a crashed
+// run. TUN routes are root-owned and are cleaned by the TUN core itself on
+// its next start.
 func CleanupStaleState() {
 	logger := zerolog.Nop()
 	server.ResetJobs(logger, http.StateFile)
 	server.ResetJobs(logger, socks5.StateFile)
-	server.ResetJobs(logger, tun.StateFile)
 }
 
 func (e *Engine) Status() Status {

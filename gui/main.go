@@ -205,7 +205,7 @@ func main() {
 			case <-app.Context().Done():
 				return
 			case <-t.C:
-				if svc.eng.Status().Running {
+				if svc.running() {
 					updateTray()
 				}
 			}

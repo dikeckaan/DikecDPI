@@ -18,13 +18,22 @@ build() {
   GOOS=darwin GOARCH="$1" go build -trimpath -tags production \
     -ldflags "-s -w -X main.version=$VERSION" -o "$2" .
 }
+# The CLI core runs TUN mode as root (see tun.go). Built from the parent module.
+build_core() {
+  ( cd .. && GOOS=darwin GOARCH="$1" go build -trimpath \
+    -ldflags "-s -w -X main.version=$VERSION -X main.build=app" -o "gui/$2" ./cmd/spoofdpi )
+}
 if [ "$ARCH" = "universal" ]; then
   build arm64 dist/DikecDPI-arm64
   build amd64 dist/DikecDPI-amd64
+  build_core arm64 dist/core-arm64
+  build_core amd64 dist/core-amd64
   lipo -create -output "$APP/Contents/MacOS/DikecDPI" dist/DikecDPI-arm64 dist/DikecDPI-amd64
-  rm dist/DikecDPI-arm64 dist/DikecDPI-amd64
+  lipo -create -output "$APP/Contents/MacOS/dikecdpi-core" dist/core-arm64 dist/core-amd64
+  rm dist/DikecDPI-arm64 dist/DikecDPI-amd64 dist/core-arm64 dist/core-amd64
 else
   build "$ARCH" "$APP/Contents/MacOS/DikecDPI"
+  build_core "$ARCH" "$APP/Contents/MacOS/dikecdpi-core"
 fi
 
 # App icon: rendered by the app itself (the "Kesik" mark), then iconutil.
