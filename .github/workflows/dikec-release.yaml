@@ -16,8 +16,9 @@ permissions:
 
 env:
   GO_VERSION: "1.26"
-  # Homebrew tap repository; needs the TAP_TOKEN secret (a fine-grained
-  # token with contents:write on that repo). Without it the tap step is skipped.
+  # Homebrew tap repository. Needs the TAP_DEPLOY_KEY secret: the private
+  # half of a deploy key with write access to that repo only. Without it
+  # the tap step is skipped.
   TAP_REPO: ${{ github.repository_owner }}/homebrew-dikecdpi
 
 jobs:
@@ -110,15 +111,18 @@ jobs:
 
       - name: Update Homebrew tap
         env:
-          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
           VERSION: ${{ needs.meta.outputs.version }}
           TAG: ${{ needs.meta.outputs.tag }}
         run: |
-          if [ -z "$TAP_TOKEN" ]; then echo "TAP_TOKEN not set; skipping tap update"; exit 0; fi
+          if [ -z "$TAP_DEPLOY_KEY" ]; then echo "TAP_DEPLOY_KEY not set; skipping tap update"; exit 0; fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$TAP_DEPLOY_KEY" > ~/.ssh/tap_key && chmod 600 ~/.ssh/tap_key
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
           src="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
           srcsha=$(curl -sL "$src" | sha256sum | cut -d' ' -f1)
           appsha=$(sha256sum "out/DikecDPI-${VERSION}-macos-universal.zip" | cut -d' ' -f1)
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+          git clone "git@github.com:${TAP_REPO}.git" tap
           packaging/homebrew/render.sh "$GITHUB_REPOSITORY" "$VERSION" "$src" "$srcsha" "$appsha" tap
           cd tap
           git config user.name "github-actions[bot]"

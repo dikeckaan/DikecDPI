@@ -67,7 +67,7 @@ brew install dikecdpi
 | macOS komut satırı | `dikecdpi-<sürüm>-darwin-arm64.tar.gz` / `-darwin-amd64` |
 | Linux | `dikecdpi-<sürüm>-linux-amd64.tar.gz` (ayrıca `arm64`, `arm`, `mipsle`, `riscv64`) |
 
-> **macOS uyarısı:** Uygulama henüz Apple tarafından onaylanmadı (notarize edilmedi). Homebrew cask bu işi sizin yerinize halleder. Zip'i elle indirdiyseniz ilk açılışta uygulamaya sağ tıklayıp **Aç**'ı seçin.
+> **macOS uyarısı:** Uygulama henüz Apple tarafından onaylanmadı (notarize edilmedi). İlk açılışta macOS uyarı verirse **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç**'a tıklayın. Bu yalnızca bir kez gerekir.
 
 ### Kaynaktan derleme
 

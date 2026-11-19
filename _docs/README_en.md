@@ -67,7 +67,7 @@ Download the file for your system from [Releases](https://github.com/dikeckaan/D
 | macOS CLI | `dikecdpi-<version>-darwin-arm64.tar.gz` / `-darwin-amd64` |
 | Linux | `dikecdpi-<version>-linux-amd64.tar.gz` (also `arm64`, `arm`, `mipsle`, `riscv64`) |
 
-> **macOS note:** the app is not notarized by Apple yet. The Homebrew cask takes care of this for you. If you downloaded the zip by hand, right-click the app and choose **Open** the first time.
+> **macOS note:** the app is not notarized by Apple yet. If macOS warns on first launch, go to **System Settings → Privacy & Security → Open Anyway**. You only need to do this once.
 
 ### Build from source
 
