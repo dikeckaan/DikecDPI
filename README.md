@@ -3,7 +3,7 @@
 # Dikec DPI
 
 **DPI engellerini aşan, ağınızı kendi tarayıp en iyi ayarı seçen proxy.**
-Menü çubuğu uygulaması + komut satırı aracı · macOS, Linux, Windows
+Menü çubuğu uygulaması + komut satırı aracı · macOS, Linux
 
 [🇬🇧 English](_docs/README_en.md)
 
@@ -59,8 +59,7 @@ brew install dikecdpi
 |---|---|
 | macOS uygulaması (Apple Silicon + Intel) | `DikecDPI-<sürüm>-macos-universal.zip` |
 | macOS komut satırı | `dikecdpi-<sürüm>-darwin-arm64.tar.gz` / `-darwin-amd64` |
-| Linux | `dikecdpi-<sürüm>-linux-amd64.tar.gz` (ayrıca `arm64`, `arm`, `mipsle`) |
-| Windows | `dikecdpi-<sürüm>-windows-amd64.zip` |
+| Linux | `dikecdpi-<sürüm>-linux-amd64.tar.gz` (ayrıca `arm64`, `arm`, `mipsle`, `riscv64`) |
 
 > **macOS uyarısı:** Uygulama henüz Apple tarafından onaylanmadı (notarize edilmedi). Homebrew cask bu işi sizin yerinize halleder. Zip'i elle indirdiyseniz ilk açılışta uygulamaya sağ tıklayıp **Aç**'ı seçin.
 
@@ -145,7 +144,7 @@ Dikec DPI, iki açık kaynak projenin omuzlarında duruyor:
 - **[xvzc/SpoofDPI](https://github.com/xvzc/SpoofDPI)**: Projenin çekirdeği. Proxy motoru, parçalama teknikleri, SOCKS5/TUN modları, kural motoru ve çok daha fazlası [@xvzc](https://github.com/xvzc) ve katkıcılarının eseri. Dikec DPI, SpoofDPI v1.6.0'ı temel alır ve upstream ile uyumlu kalacak şekilde geliştirilir. Teşekkürler!
 - **[SpoofDPI-Turkiye](https://github.com/mertikavi/SpoofDPI-Turkiye)** (eski adıyla renardev/SpoofDPI-Turkiye): SpoofDPI'ı Türkiye için yapılandıran, Yandex DNS ayarını ve Türkçe belgeleri getiren ilk uyarlama. Bu proje onun devamı olarak başladı. Teşekkürler!
 
-Ayrıca Windows kullanıcıları için Türkiye'ye özel bir başka güzel proje: [GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey).
+Windows kullanıcıları için (SpoofDPI v1 çekirdeği Windows'u desteklemiyor) Türkiye'ye özel güzel bir proje: [GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey).
 
 ## Yasal uyarı
 

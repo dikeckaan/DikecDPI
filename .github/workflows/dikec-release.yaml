@@ -35,17 +35,20 @@ jobs:
 
   cli:
     needs: meta
-    runs-on: ubuntu-latest
+    # Same platforms as upstream SpoofDPI: darwin needs cgo (libpcap) and is
+    # built on macOS; linux is pure Go. Windows is not supported upstream.
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - { goos: darwin, goarch: arm64 }
-          - { goos: darwin, goarch: amd64 }
-          - { goos: linux, goarch: amd64 }
-          - { goos: linux, goarch: arm64 }
-          - { goos: linux, goarch: arm }
-          - { goos: linux, goarch: mipsle }
-          - { goos: windows, goarch: amd64 }
+          - { os: macos-latest, goos: darwin, goarch: arm64, cgo: "1" }
+          - { os: macos-latest, goos: darwin, goarch: amd64, cgo: "1" }
+          - { os: ubuntu-latest, goos: linux, goarch: amd64, cgo: "0" }
+          - { os: ubuntu-latest, goos: linux, goarch: arm64, cgo: "0" }
+          - { os: ubuntu-latest, goos: linux, goarch: arm, cgo: "0" }
+          - { os: ubuntu-latest, goos: linux, goarch: mipsle, cgo: "0" }
+          - { os: ubuntu-latest, goos: linux, goarch: riscv64, cgo: "0" }
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ needs.meta.outputs.tag }}" }
@@ -55,15 +58,15 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: "0"
+          CGO_ENABLED: ${{ matrix.cgo }}
+          GOMIPS: softfloat
           VERSION: ${{ needs.meta.outputs.version }}
         run: |
           name="dikecdpi-${VERSION}-${GOOS}-${GOARCH}"
-          ext=""; [ "$GOOS" = windows ] && ext=".exe"
           go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7} -X main.build=release" \
-            -o "dist/dikecdpi${ext}" ./cmd/spoofdpi
+            -o dist/dikecdpi ./cmd/spoofdpi
           cp LICENSE README.md dist/
-          if [ "$GOOS" = windows ]; then (cd dist && zip -q "../${name}.zip" *); else tar -C dist -czf "${name}.tar.gz" .; fi
+          tar -C dist -czf "${name}.tar.gz" .
       - uses: actions/upload-artifact@v4
         with:
           name: cli-${{ matrix.goos }}-${{ matrix.goarch }}

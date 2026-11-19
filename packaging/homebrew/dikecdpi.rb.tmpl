@@ -9,6 +9,8 @@ class Dikecdpi < Formula
   depends_on "go" => :build
 
   def install
+    # Linux builds are pure Go (as upstream); macOS links libpcap via cgo.
+    ENV["CGO_ENABLED"] = "0" if OS.linux?
     ldflags = "-s -w -X main.version=#{version} -X main.build=homebrew"
     system "go", "build", *std_go_args(ldflags:, output: bin/"dikecdpi"), "./cmd/spoofdpi"
   end
