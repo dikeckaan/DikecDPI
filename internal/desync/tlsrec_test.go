@@ -21,7 +21,7 @@ import (
 func realClientHello(t *testing.T, sni string) []byte {
 	t.Helper()
 	c, s := net.Pipe()
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	go func() {
 		cl := tls.Client(c, &tls.Config{ServerName: sni, InsecureSkipVerify: true})
 		_ = cl.SetDeadline(time.Now().Add(2 * time.Second))
@@ -55,7 +55,11 @@ func TestSplitTLSRecord(t *testing.T) {
 		p := s.Packet
 		assert.Equal(t, raw[:3], p[:3], "record header must be kept")
 		assert.Equal(t, len(p)-5, int(binary.BigEndian.Uint16(p[3:5])))
-		assert.False(t, strings.Contains(string(p), sni), "a record still holds the full SNI")
+		assert.False(
+			t,
+			strings.Contains(string(p), sni),
+			"a record still holds the full SNI",
+		)
 		assert.False(t, s.Lazy)
 		payload = append(payload, p[5:]...)
 	}

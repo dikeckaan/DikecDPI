@@ -42,7 +42,7 @@ func TestCreateCommand_Flags(t *testing.T) {
 				assert.True(t, cfg.DNS.Cache)
 				assert.Equal(t, uint8(0), cfg.HTTPS.FakeCount)
 				assert.False(t, cfg.HTTPS.Disorder)
-				assert.Equal(t, HTTPSSplitModeChunk, cfg.HTTPS.SplitMode)
+				assert.Equal(t, HTTPSSplitModeTLSRecord, cfg.HTTPS.SplitMode)
 				assert.Equal(t, uint8(5), cfg.HTTPS.ChunkSize)
 				assert.False(t, cfg.HTTPS.Skip)
 				assert.Equal(t, uint8(0), cfg.UDP.FakeCount)

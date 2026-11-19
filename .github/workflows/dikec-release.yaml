@@ -1,0 +1,123 @@
+name: Dikec DPI release
+
+# Push a tag like v1.0.0 to build every binary, publish a GitHub release and
+# update the Homebrew tap (formula + cask).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: "1.26"
+  # Homebrew tap repository; needs the TAP_TOKEN secret (a fine-grained
+  # token with contents:write on that repo). Without it the tap step is skipped.
+  TAP_REPO: ${{ github.repository_owner }}/homebrew-dikecdpi
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+  cli:
+    needs: meta
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: darwin, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: linux, goarch: arm }
+          - { goos: linux, goarch: mipsle }
+          - { goos: windows, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.meta.outputs.tag }}" }
+      - uses: actions/setup-go@v5
+        with: { go-version: "${{ env.GO_VERSION }}" }
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          name="dikecdpi-${VERSION}-${GOOS}-${GOARCH}"
+          ext=""; [ "$GOOS" = windows ] && ext=".exe"
+          go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7} -X main.build=release" \
+            -o "dist/dikecdpi${ext}" ./cmd/spoofdpi
+          cp LICENSE README.md dist/
+          if [ "$GOOS" = windows ]; then (cd dist && zip -q "../${name}.zip" *); else tar -C dist -czf "${name}.tar.gz" .; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dikecdpi-*
+
+  gui-macos:
+    needs: meta
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.meta.outputs.tag }}" }
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: gui/go.sum
+      - name: Build Dikec DPI.app (universal)
+        run: gui/build/package.sh "${{ needs.meta.outputs.version }}" universal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-macos
+          path: gui/dist/*.zip
+
+  release:
+    needs: [meta, cli, gui-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.meta.outputs.tag }}" }
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - name: Checksums
+        run: cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "Dikec DPI $TAG" --generate-notes
+          gh release upload "$TAG" out/* --clobber
+
+      - name: Update Homebrew tap
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then echo "TAP_TOKEN not set; skipping tap update"; exit 0; fi
+          src="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
+          srcsha=$(curl -sL "$src" | sha256sum | cut -d' ' -f1)
+          appsha=$(sha256sum "out/DikecDPI-${VERSION}-macos-universal.zip" | cut -d' ' -f1)
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+          packaging/homebrew/render.sh "$GITHUB_REPOSITORY" "$VERSION" "$src" "$srcsha" "$appsha" tap
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -m "dikecdpi ${VERSION}" && git push

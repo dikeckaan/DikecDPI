@@ -1,0 +1,27 @@
+cask "dikec-dpi" do
+  version "__VERSION__"
+  sha256 "__APP_SHA__"
+
+  url "https://github.com/__REPO__/releases/download/v#{version}/DikecDPI-#{version}-macos-universal.zip"
+  name "Dikec DPI"
+  desc "DPI engellerini aşan, kendi kendini ayarlayan proxy uygulaması"
+  homepage "https://github.com/__REPO__"
+
+  depends_on macos: ">= :ventura"
+
+  app "Dikec DPI.app"
+
+  # The app is ad-hoc signed but not notarized; without this macOS refuses
+  # to open it ("developer cannot be verified").
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-dr", "com.apple.quarantine", "#{appdir}/Dikec DPI.app"]
+  end
+
+  uninstall quit: "com.dikec.dpi"
+
+  zap trash: [
+    "~/Library/Application Support/DikecDPI",
+    "~/Library/Preferences/com.dikec.dpi.plist",
+  ]
+end

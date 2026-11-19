@@ -19,3 +19,6 @@ site/
 .opencode/
 /AGENTS.md
 /CLAUDE.md
+
+# Dikec DPI
+gui/dist/

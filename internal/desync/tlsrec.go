@@ -15,7 +15,11 @@ const tlsRecordHeaderLen = 5
 // records, so servers reassemble it transparently, while DPI middleboxes
 // that only parse the first record never see the complete host name. This
 // works even when the DPI reassembles TCP segments, unlike plain splitting.
-func splitTLSRecord(raw []byte, sniStart, sniEnd int, disorder bool) ([]Segment, error) {
+func splitTLSRecord(
+	raw []byte,
+	sniStart, sniEnd int,
+	disorder bool,
+) ([]Segment, error) {
 	if len(raw) <= tlsRecordHeaderLen {
 		return nil, fmt.Errorf("record too short")
 	}

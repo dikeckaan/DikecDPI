@@ -54,8 +54,9 @@ func DefaultConfig() *Config { //exhaustruct:enforce
 				Disorder:   false,
 				FakeCount:  0,
 				FakePacket: proto.NewFakeTLSMessage([]byte(FakeClientHello)),
-				// TR: Türk DPI'ında "sni" modu engellenebiliyor; 5 baytlık parçalar çalışıyor.
-				SplitMode:          HTTPSSplitModeChunk,
+				// TR: Türk DPI'ı "sni" modunu ve bazı sitelerde chunk/5'i sıfırlıyor;
+				// ClientHello'yu TLS kayıtlarına bölmek (tlsrec) canlı testte 3/3 açtı.
+				SplitMode:          HTTPSSplitModeTLSRecord,
 				ChunkSize:          5,
 				CustomSegmentPlans: nil,
 				Skip:               false,
@@ -83,7 +84,7 @@ func CreateCommand(
 	defaultCfg := DefaultConfig()
 
 	cmd := &cli.Command{
-		Name:        "spoofdpi",
+		Name:        "dikecdpi",
 		Description: "Simple and fast anti-censorship tool to bypass DPI",
 		Copyright:   "Apache License, Version 2.0, January 2004",
 		ErrWriter:   io.Discard,
@@ -317,7 +318,7 @@ func CreateCommand(
 					enumUsage(availableHTTPSModeValues),
 					defaultCfg.HTTPS.SplitMode.String(),
 				),
-				Value:     "chunk",
+				Value:     "tlsrec",
 				OnlyOnce:  true,
 				Validator: checkHTTPSSplitMode,
 				Action: func(ctx context.Context, cmd *cli.Command, v string) error {
@@ -569,8 +570,8 @@ func CreateCommand(
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Bool("version") {
-				fmt.Printf("spoofdpi %s %s (%s)\n", version, commit, build)
-				fmt.Println("Official docs at https://spoofdpi.xvzc.dev")
+				fmt.Printf("dikecdpi %s %s (%s)\n", version, commit, build)
+				fmt.Println("Dikec DPI · xvzc/SpoofDPI çekirdeği üzerine, Türkiye ayarlarıyla")
 				os.Exit(0)
 			}
 
