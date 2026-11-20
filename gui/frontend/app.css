@@ -215,6 +215,11 @@ body.tray { background: transparent; }
 .power.busy { cursor: progress; }
 .power.busy .ring-fg { animation: ringflow 1.1s linear infinite; transform-origin: 98px 98px; }
 @keyframes ringflow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -110.6; } }
+/* stopping: the ring runs backwards and dims, the slices settle */
+.power.busy.stopping .ring-fg { animation: ringflow-back 1.1s linear infinite, dim 1.8s ease-in-out infinite; }
+@keyframes ringflow-back { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 110.6; } }
+@keyframes dim { 50% { stroke-opacity: .35; } }
+.power.busy.stopping::after { animation-direction: reverse; }
 .power.busy::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 0 0 rgba(200, 242, 90, .45); animation: halo 1.4s ease-out infinite; }
 @keyframes halo { to { box-shadow: 0 0 0 18px rgba(200, 242, 90, 0); } }
 .glyph.busy rect { animation: slide 1.2s ease-in-out infinite; }

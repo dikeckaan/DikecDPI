@@ -71,6 +71,21 @@ function regionName(r) {
   return v === k ? r : v;
 }
 
+// Elapsed-time text is patched in place every second (see tickSince) so the
+// rendered HTML stays identical and the DOM is not rebuilt each second —
+// rebuilding it under the cursor swallowed clicks.
+const SINCE_TOKEN = "\u0000since\u0000";
+function withSince(text, ts) {
+  const html = esc(text);
+  return html.replace(SINCE_TOKEN, `<span class="since" data-since="${esc(ts)}">${since(ts)}</span>`);
+}
+function tickSince() {
+  for (const el of root.querySelectorAll("[data-since]")) {
+    const v = since(el.dataset.since);
+    if (el.textContent !== v) el.textContent = v;
+  }
+}
+
 function since(ts) {
   const s = Math.max(0, Math.floor((Date.now() - new Date(ts).getTime()) / 1000));
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
@@ -145,8 +160,22 @@ const SCROLLERS = [".main", ".matrix-card", ".logs", ".plist"];
 let lastHTML = "";
 let lastPage = "";
 
+let pointerDown = false;
+let renderPending = false;
+root.addEventListener("pointerdown", () => { pointerDown = true; });
+const pointerUp = () => {
+  if (!pointerDown) return;
+  pointerDown = false;
+  // Let the click event fire on the element that was pressed, then catch up.
+  if (renderPending) setTimeout(() => { renderPending = false; render(); }, 0);
+};
+window.addEventListener("pointerup", pointerUp);
+window.addEventListener("pointercancel", pointerUp);
+window.addEventListener("blur", pointerUp);
+
 function render() {
   if (!ui.s) return;
+  if (pointerDown) { renderPending = true; return; }
   const html = isTray ? trayView() : mainView();
   // Nothing changed: leave the DOM alone (keeps scroll, selection, focus).
   if (html === lastHTML) return;
@@ -161,6 +190,7 @@ function render() {
   root.innerHTML = html;
   lastHTML = html;
   lastPage = ui.page;
+  tickSince();
 
   if (samePage) {
     for (const s of saved) {
@@ -246,14 +276,14 @@ function panelPage() {
     title = busy === "starting" ? t("busy.starting") : t("busy.stopping");
     body = busy === "starting" ? (tun ? t("busy.tun") : t("busy.proxy")) : t("busy.off");
   } else {
-    tag = on ? t("status.active", { t: since(st.since) }) : t("status.off");
+    tag = on ? t("status.active", { t: SINCE_TOKEN }) : t("status.off");
     title = on ? t("hero.onTitle") : t("hero.offTitle");
     body = tun ? (on ? t("hero.tunOn") : t("hero.tunOff")) : on ? t("hero.proxyOn", { addr: st.addr }) : t("hero.proxyOff");
   }
 
   return `${banner}
   <div class="hero">
-    <button class="power ${busy ? "busy" : ""}" data-act="toggle" ${busy ? "disabled" : ""} aria-pressed="${on}" aria-busy="${!!busy}" aria-label="${esc(on ? t("power.off") : t("power.on"))}">
+    <button class="power ${busy ? "busy " + busy : ""}" data-act="toggle" ${busy ? "disabled" : ""} aria-pressed="${on}" aria-busy="${!!busy}" aria-label="${esc(on ? t("power.off") : t("power.on"))}">
       <svg class="ring" width="196" height="196" viewBox="0 0 196 196" aria-hidden="true">
         <circle cx="98" cy="98" r="88" fill="none" stroke="#1E2129" stroke-width="10"/>
         <circle class="ring-fg" cx="98" cy="98" r="88" fill="none" stroke="${ringColor}" stroke-width="10" stroke-dasharray="${ringDash}" transform="rotate(-90 98 98)"/>
@@ -262,7 +292,7 @@ function panelPage() {
       <span style="position:relative">${glyph(busy ? "busy" : on ? "on" : "off", busy || on ? accent : "#6E7582", 64)}</span>
     </button>
     <div class="hero-text">
-      <span class="tag ${busy ? "pulse" : ""}" style="color:${busy || on ? accent : "var(--muted)"}">${esc(tag)}</span>
+      <span class="tag ${busy ? "pulse" : ""}" style="color:${busy || on ? accent : "var(--muted)"}">${on && !busy ? withSince(tag, st.since) : esc(tag)}</span>
       <h1>${esc(title)}</h1>
       <p>${esc(body)}</p>
       <div class="row" style="margin-top:6px">
@@ -483,14 +513,14 @@ function trayView() {
     : s.lastScan ? t("tray.lastScan", { n: s.lastScan.combos, d: s.lastScan.duration }) : t("tray.noScan");
   const title = busy ? (busy === "starting" ? t("busy.starting") : t("busy.stopping")) : on ? t("tray.on") : t("tray.off");
   const sub = busy ? (busy === "starting" && s.options.appMode === "tun" ? t("busy.tun") : busy === "starting" ? t("busy.startTag") : t("busy.stopTag"))
-    : (on ? t("tray.active", { t: since(s.status.since) }) : t("tray.inactive")) + (s.options.appMode === "tun" ? " · TUN" : "");
+    : (on ? t("tray.active", { t: SINCE_TOKEN }) : t("tray.inactive")) + (s.options.appMode === "tun" ? " · TUN" : "");
   const error = translateBackend(s.error);
   return `<div class="pop">
     <div class="head">
       ${glyph(busy ? "busy" : error && on ? "warn" : on ? "on" : "off", busy || on ? "var(--accent)" : "#6E7582", 34)}
       <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0">
         <span class="ttl">${esc(title)}</span>
-        <span class="mono ${busy ? "pulse" : ""}" style="font-size:11px;color:${busy || on ? "var(--accent)" : "var(--muted)"}">${esc(sub)}</span>
+        <span class="mono ${busy ? "pulse" : ""}" style="font-size:11px;color:${busy || on ? "var(--accent)" : "var(--muted)"}">${on && !busy ? withSince(sub, s.status.since) : esc(sub)}</span>
       </div>
       <button class="switch ${busy ? "busy" : ""}" role="switch" aria-checked="${busy ? busy === "starting" : on}" aria-busy="${!!busy}" ${busy ? "disabled" : ""} aria-label="${esc(t("tray.toggleAria"))}" data-act="toggle"><span></span></button>
     </div>
@@ -531,7 +561,7 @@ async function act(name, arg, el) {
       render();
       try {
         // Keep the transition visible for a moment even when it is instant.
-        await Promise.all([api("Toggle"), new Promise((r) => setTimeout(r, 650))]);
+        await Promise.all([api("Toggle"), new Promise((r) => setTimeout(r, 900))]);
       } finally {
         ui.busy = null;
         await refresh(true);
@@ -749,6 +779,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) refr
 window.addEventListener("focus", () => refresh(true));
 
 await refresh(true);
+setInterval(tickSince, 1000);
 setInterval(async () => {
   if (document.hidden) return;
   await refresh();
