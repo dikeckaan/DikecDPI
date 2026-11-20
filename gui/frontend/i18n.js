@@ -16,6 +16,7 @@ export const LANGUAGES = [
 const D = {};
 
 D.en = {
+  "net.standby": "Pass-through on {addr}", "hero.standby": "Apps that remembered the proxy address (e.g. Claude Desktop sessions) keep working: {addr} stays open as a plain pass-through while Dikec DPI runs.",
   "busy.starting": "Connecting…", "busy.stopping": "Shutting down…", "busy.startTag": "● Starting", "busy.stopTag": "● Stopping", "busy.tun": "Waiting for the macOS administrator password…", "busy.proxy": "Starting the proxy and setting up the system proxy…", "busy.off": "Restoring your network settings…",
   "nav.panel": "Dashboard", "nav.auto": "Auto Bypass", "nav.profiles": "Profiles", "nav.logs": "Log", "nav.settings": "Settings", "nav.aria": "Main menu",
   "net.allSystem": "Whole system", "net.utun": "utun interface active", "net.sysProxy": "System proxy is set", "net.manual": "Point your browser to it", "common.off": "Off",
@@ -101,6 +102,7 @@ D.en = {
 };
 
 D.tr = {
+  "net.standby": "{addr} geçiş modunda", "hero.standby": "Proxy adresini hatırlayan uygulamalar (ör. Claude Desktop oturumları) çalışmaya devam eder: Dikec DPI açık kaldıkça {addr} düz geçiş olarak açık kalır.",
   "busy.starting": "Bağlanıyor…", "busy.stopping": "Kapatılıyor…", "busy.startTag": "● Başlatılıyor", "busy.stopTag": "● Durduruluyor", "busy.tun": "macOS yönetici şifresi bekleniyor…", "busy.proxy": "Proxy başlatılıyor ve sistem proxy’si ayarlanıyor…", "busy.off": "Ağ ayarlarınız geri yükleniyor…",
   "nav.panel": "Panel", "nav.auto": "Otomatik Bypass", "nav.profiles": "Profiller", "nav.logs": "Kayıt", "nav.settings": "Ayarlar", "nav.aria": "Ana menü",
   "net.allSystem": "Tüm sistem", "net.utun": "utun arayüzü aktif", "net.sysProxy": "Sistem proxy’si ayarlı", "net.manual": "Tarayıcıyı elle yönlendirin", "common.off": "Kapalı",
@@ -173,6 +175,7 @@ D.tr = {
 };
 
 D.ru = {
+  "net.standby": "Прямой проход на {addr}", "hero.standby": "Приложения, запомнившие адрес прокси (например, сеансы Claude Desktop), продолжают работать: пока Dikec DPI запущен, {addr} остаётся открытым как прямой проход.",
   "busy.starting": "Подключение…", "busy.stopping": "Отключение…", "busy.startTag": "● Запуск", "busy.stopTag": "● Остановка", "busy.tun": "Ожидание пароля администратора macOS…", "busy.proxy": "Запуск прокси и настройка системного прокси…", "busy.off": "Восстановление сетевых настроек…",
   "nav.panel": "Панель", "nav.auto": "Автообход", "nav.profiles": "Профили", "nav.logs": "Журнал", "nav.settings": "Настройки", "nav.aria": "Главное меню",
   "net.allSystem": "Вся система", "net.utun": "интерфейс utun активен", "net.sysProxy": "Системный прокси настроен", "net.manual": "Укажите прокси в браузере", "common.off": "Выключено",
@@ -243,6 +246,7 @@ D.ru = {
 };
 
 D.fa = {
+  "net.standby": "عبور مستقیم روی {addr}", "hero.standby": "برنامه‌هایی که نشانی پراکسی را به خاطر سپرده‌اند (مثل نشست‌های Claude Desktop) کار می‌کنند: تا Dikec DPI باز است، {addr} به‌صورت عبور مستقیم باز می‌ماند.",
   "busy.starting": "در حال اتصال…", "busy.stopping": "در حال خاموش کردن…", "busy.startTag": "● در حال شروع", "busy.stopTag": "● در حال توقف", "busy.tun": "در انتظار رمز مدیر macOS…", "busy.proxy": "در حال راه‌اندازی پراکسی و تنظیم پراکسی سیستم…", "busy.off": "در حال بازگرداندن تنظیمات شبکه…",
   "nav.panel": "داشبورد", "nav.auto": "دور زدن خودکار", "nav.profiles": "پروفایل‌ها", "nav.logs": "گزارش", "nav.settings": "تنظیمات", "nav.aria": "منوی اصلی",
   "net.allSystem": "کل سیستم", "net.utun": "رابط utun فعال است", "net.sysProxy": "پراکسی سیستم تنظیم شده", "net.manual": "مرورگر را دستی تنظیم کنید", "common.off": "خاموش",
@@ -313,6 +317,7 @@ D.fa = {
 };
 
 D.ar = {
+  "net.standby": "تمرير مباشر على {addr}", "hero.standby": "التطبيقات التي حفظت عنوان الوكيل (مثل جلسات Claude Desktop) تستمر في العمل: يبقى {addr} مفتوحًا كتمرير مباشر ما دام Dikec DPI يعمل.",
   "busy.starting": "جارٍ الاتصال…", "busy.stopping": "جارٍ الإيقاف…", "busy.startTag": "● جارٍ التشغيل", "busy.stopTag": "● جارٍ الإيقاف", "busy.tun": "بانتظار كلمة مرور مسؤول macOS…", "busy.proxy": "جارٍ تشغيل الوكيل وضبط وكيل النظام…", "busy.off": "جارٍ استعادة إعدادات الشبكة…",
   "nav.panel": "لوحة التحكم", "nav.auto": "التجاوز التلقائي", "nav.profiles": "الملفات الشخصية", "nav.logs": "السجل", "nav.settings": "الإعدادات", "nav.aria": "القائمة الرئيسية",
   "net.allSystem": "النظام بالكامل", "net.utun": "واجهة utun نشطة", "net.sysProxy": "وكيل النظام مضبوط", "net.manual": "اضبط المتصفح يدويًا", "common.off": "متوقف",
@@ -383,6 +388,7 @@ D.ar = {
 };
 
 D.zh = {
+  "net.standby": "{addr} 直通模式", "hero.standby": "记住了代理地址的应用（例如 Claude Desktop 会话）仍可正常联网：Dikec DPI 运行期间，{addr} 会作为直通代理保持开放。",
   "busy.starting": "正在连接…", "busy.stopping": "正在关闭…", "busy.startTag": "● 正在启动", "busy.stopTag": "● 正在停止", "busy.tun": "正在等待 macOS 管理员密码…", "busy.proxy": "正在启动代理并设置系统代理…", "busy.off": "正在恢复网络设置…",
   "nav.panel": "面板", "nav.auto": "自动绕过", "nav.profiles": "配置方案", "nav.logs": "日志", "nav.settings": "设置", "nav.aria": "主菜单",
   "net.allSystem": "整个系统", "net.utun": "utun 接口已启用", "net.sysProxy": "已设置系统代理", "net.manual": "请在浏览器中手动设置", "common.off": "已关闭",
@@ -453,6 +459,7 @@ D.zh = {
 };
 
 D.id = {
+  "net.standby": "Lewat langsung di {addr}", "hero.standby": "Aplikasi yang mengingat alamat proxy (mis. sesi Claude Desktop) tetap berjalan: selama Dikec DPI berjalan, {addr} tetap terbuka sebagai lewat langsung.",
   "busy.starting": "Menghubungkan…", "busy.stopping": "Mematikan…", "busy.startTag": "● Memulai", "busy.stopTag": "● Menghentikan", "busy.tun": "Menunggu kata sandi administrator macOS…", "busy.proxy": "Memulai proxy dan mengatur proxy sistem…", "busy.off": "Mengembalikan pengaturan jaringan…",
   "nav.panel": "Dasbor", "nav.auto": "Bypass Otomatis", "nav.profiles": "Profil", "nav.logs": "Log", "nav.settings": "Pengaturan", "nav.aria": "Menu utama",
   "net.allSystem": "Seluruh sistem", "net.utun": "antarmuka utun aktif", "net.sysProxy": "Proxy sistem sudah diatur", "net.manual": "Atur peramban secara manual", "common.off": "Mati",
@@ -523,6 +530,7 @@ D.id = {
 };
 
 D.es = {
+  "net.standby": "Paso directo en {addr}", "hero.standby": "Las apps que recordaron la dirección del proxy (p. ej. sesiones de Claude Desktop) siguen funcionando: mientras Dikec DPI esté abierto, {addr} queda abierto como paso directo.",
   "busy.starting": "Conectando…", "busy.stopping": "Apagando…", "busy.startTag": "● Iniciando", "busy.stopTag": "● Deteniendo", "busy.tun": "Esperando la contraseña de administrador de macOS…", "busy.proxy": "Iniciando el proxy y configurando el proxy del sistema…", "busy.off": "Restaurando la configuración de red…",
   "nav.panel": "Panel", "nav.auto": "Bypass automático", "nav.profiles": "Perfiles", "nav.logs": "Registro", "nav.settings": "Ajustes", "nav.aria": "Menú principal",
   "net.allSystem": "Todo el sistema", "net.utun": "interfaz utun activa", "net.sysProxy": "Proxy del sistema configurado", "net.manual": "Configura el navegador a mano", "common.off": "Apagado",

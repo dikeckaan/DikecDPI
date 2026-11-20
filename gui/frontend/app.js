@@ -232,7 +232,7 @@ function mainView() {
         <div class="netcard">
           <span class="eyebrow">${tun ? "TUN" : "Proxy"}</span>
           <span style="font-size:13px;font-weight:500">${tun ? esc(t("net.allSystem")) : esc(s.options.listenAddr)}</span>
-          <span class="mono muted" style="font-size:11px">${esc(tun ? (s.status.running ? t("net.utun") : t("common.off")) : s.status.systemProxy ? t("net.sysProxy") : (s.status.running ? t("net.manual") : t("common.off")))}</span>
+          <span class="mono muted" style="font-size:11px">${esc(tun ? (s.status.running ? t("net.utun") : t("common.off")) : s.status.systemProxy ? t("net.sysProxy") : s.status.running ? t("net.manual") : s.standby ? t("net.standby", { addr: s.options.listenAddr }) : t("common.off"))}</span>
         </div>
         <button class="ver" data-act="about" title="${esc(t("st.about"))}">v${esc(s.version)}</button>
       </nav>
@@ -301,6 +301,7 @@ function panelPage() {
       <span class="tag" style="color:${busy === "stopping" ? "var(--muted2)" : busy || on ? accent : "var(--muted)"}">${on && !busy ? withSince(tag, st.since) : esc(tag)}</span>
       <h1>${esc(title)}</h1>
       <p>${esc(body)}</p>
+      ${!busy && !on && !tun && s.standby ? `<p class="muted" style="font-size:12px">${esc(t("hero.standby", { addr: s.options.listenAddr }))}</p>` : ""}
       <div class="row" style="margin-top:6px">
         <button class="btn ${busy ? "busy " + busy : on ? "dark" : "primary"}" data-act="toggle" ${busy ? "disabled" : ""}>${busy ? spinner + esc(title) : esc(on ? t("btn.stop") : t("btn.start"))}</button>
         <button class="btn" data-act="scan" ${s.scanning || busy ? "disabled" : ""}>${I.bolt}${esc(s.lastScan ? t("btn.rescan") : t("btn.autoScan"))}</button>

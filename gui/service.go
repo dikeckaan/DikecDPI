@@ -17,6 +17,8 @@ type App struct {
 	mu       sync.Mutex
 	eng      *engine.Engine
 	tun      *tunRunner
+	standby  *engine.Engine // pass-through for apps that pinned the proxy
+	quitting bool
 	upd      *updater
 	st       *persisted
 	scanning bool
@@ -24,15 +26,16 @@ type App struct {
 	lastErr  string
 
 	// hooks set by main
-	onChange func()
-	openMain func()
-	openURL  func(string)
-	quit     func()
-	emit     func(name string, data any)
+	onChange  func()
+	openMain  func()
+	openURL   func(string)
+	forceQuit func() // quit without the pinned-connections warning (updater)
+	quit      func()
+	emit      func(name string, data any)
 }
 
 func NewApp() *App {
-	return &App{eng: engine.New(), tun: newTunRunner(), upd: newUpdater(), st: loadState()}
+	return &App{eng: engine.New(), standby: engine.New(), tun: newTunRunner(), upd: newUpdater(), st: loadState()}
 }
 
 func (a *App) isTunLocked() bool { return a.st.Options.AppMode == "tun" }
@@ -77,6 +80,7 @@ type StateView struct {
 	FirstRun      bool           `json:"firstRun"`
 	Update        UpdateInfo     `json:"update"`
 	Language      string         `json:"language"`
+	Standby       bool           `json:"standby"`
 	UnblockedNow  int            `json:"unblockedNow"`
 	Error         string         `json:"error"`
 	Version       string         `json:"version"`
@@ -143,6 +147,7 @@ func (a *App) GetState() StateView {
 		FirstRun:      !a.st.FirstRunDone,
 		Update:        a.upd.get(),
 		Language:      a.st.Language,
+		Standby:       a.standby.Status().Running,
 		UnblockedNow:  a.unblockedLocked(),
 		Error:         errMsg,
 		Version:       version,
@@ -206,7 +211,12 @@ func (a *App) Start() error {
 		if a.tun.Running() {
 			a.tun.Stop()
 		}
+		a.stopStandby()
 		err = a.eng.Start(cfg)
+		for i := 0; i < 10 && err != nil && strings.Contains(err.Error(), "address already in use"); i++ {
+			time.Sleep(100 * time.Millisecond) // pass-through listener still closing
+			err = a.eng.Start(cfg)
+		}
 		if err != nil {
 			err = errors.New(friendlyStartError(err, listen))
 		}
@@ -227,6 +237,7 @@ func (a *App) startLocked() error {
 		if a.eng.Status().Running {
 			a.eng.Stop()
 		}
+		a.stopStandby()
 		if err := a.tun.Start(a.selectedLocked(), a.st.Options); err != nil {
 			a.lastErr = err.Error()
 			return err
@@ -245,7 +256,13 @@ func (a *App) startLocked() error {
 		a.lastErr = err.Error()
 		return err
 	}
-	if err := a.eng.Start(cfg); err != nil {
+	a.stopStandby()
+	err = a.eng.Start(cfg)
+	for i := 0; i < 10 && err != nil && strings.Contains(err.Error(), "address already in use"); i++ {
+		time.Sleep(100 * time.Millisecond)
+		err = a.eng.Start(cfg)
+	}
+	if err != nil {
 		a.lastErr = friendlyStartError(err, a.st.Options.ListenAddr)
 		return errors.New(a.lastErr)
 	}
@@ -268,7 +285,13 @@ func (a *App) Stop() {
 	// Both backends have their own locks; restoring the network settings
 	// can take a moment, so the service lock is not held here.
 	a.tun.Stop()
+	wasProxy := a.eng.Status().Running
 	a.eng.Stop()
+	if wasProxy {
+		a.mu.Lock()
+		a.startStandbyLocked()
+		a.mu.Unlock()
+	}
 	a.changed()
 }
 
@@ -334,9 +357,13 @@ func (a *App) SaveOptions(o engine.Options) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.stopStandby() // the address or mode may have changed
 	a.st.Options = o
 	_ = a.st.save()
 	err := a.restartIfRunningLocked()
+	if !a.running() {
+		a.startStandbyLocked()
+	}
 	a.changed()
 	return err
 }
@@ -508,8 +535,8 @@ func (a *App) InstallUpdate() (string, error) {
 	// restores the system proxy / TUN routes, then the updater takes over.
 	go func() {
 		time.Sleep(1200 * time.Millisecond)
-		if a.quit != nil {
-			a.quit()
+		if a.forceQuit != nil {
+			a.forceQuit()
 		}
 	}()
 	return "brew", nil
@@ -545,9 +572,13 @@ func (a *App) Quit() {
 
 // ServiceShutdown restores the network settings when the app exits.
 func (a *App) ServiceShutdown() error {
+	a.mu.Lock()
+	a.quitting = true
+	a.mu.Unlock()
 	a.CancelScan()
 	a.tun.Stop()
 	a.eng.Stop()
+	a.stopStandby()
 	return nil
 }
 

@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -57,7 +58,45 @@ func main() {
 
 	var mainWin *application.WebviewWindow
 
-	app := application.New(application.Options{
+	// Quit flow: warn before cutting off apps that pinned the proxy address.
+	var app *application.App
+	var quitting atomic.Bool
+	reallyQuit := func() {
+		quitting.Store(true)
+		app.Quit()
+	}
+	var hideAll func()
+	requestQuit := func() {
+		n := svc.PinnedConnections()
+		if n == 0 {
+			reallyQuit()
+			return
+		}
+		lang := svc.lang()
+		d := app.Dialog.Question().
+			SetTitle(nt(lang, "qTitle")).
+			SetMessage(fmt.Sprintf(nt(lang, "qMsg"), n))
+		keep := d.AddButton(nt(lang, "qKeep"))
+		keep.OnClick(func() {
+			if hideAll != nil {
+				hideAll()
+			}
+		})
+		d.AddButton(nt(lang, "qQuit")).OnClick(reallyQuit)
+		d.SetDefaultButton(keep)
+		d.SetCancelButton(keep)
+		d.Show()
+	}
+
+	app = application.New(application.Options{
+		// Cmd+Q / Dock "Quit" end up here; route them through the warning.
+		ShouldQuit: func() bool {
+			if quitting.Load() {
+				return true
+			}
+			go requestQuit()
+			return false
+		},
 		Name:        "Dikec DPI",
 		Description: "DPI engellerini aşan, kendi kendini ayarlayan proxy",
 		Services:    []application.Service{application.NewService(svc)},
@@ -131,13 +170,15 @@ func main() {
 	openItem.OnClick(func(*application.Context) { mainWin.Show(); mainWin.Focus() })
 	menu.AddSeparator()
 	quitItem := menu.Add(nt(lang, "quit"))
-	quitItem.OnClick(func(*application.Context) { app.Quit() })
+	quitItem.OnClick(func(*application.Context) { go requestQuit() })
 	tray.SetMenu(menu)
 
 	// ---- wire the service to the shell ----
 	svc.emit = func(name string, data any) { app.Event.Emit(name, data) }
 	svc.openMain = func() { popover.Hide(); mainWin.Show(); mainWin.Focus() }
-	svc.quit = func() { app.Quit() }
+	svc.quit = func() { go requestQuit() }
+	svc.forceQuit = reallyQuit
+	hideAll = func() { popover.Hide(); mainWin.Hide() }
 	svc.openURL = func(u string) { _ = app.Browser.OpenURL(u) }
 
 	// Check for updates shortly after launch, then every 6 hours.
@@ -244,6 +285,8 @@ func main() {
 			st := svc.GetState()
 			if st.StartOnLaunch {
 				_ = svc.Start()
+			} else {
+				svc.EnsureStandby()
 			}
 			updateTray()
 		},
