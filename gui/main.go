@@ -137,6 +137,28 @@ func main() {
 	svc.emit = func(name string, data any) { app.Event.Emit(name, data) }
 	svc.openMain = func() { popover.Hide(); mainWin.Show(); mainWin.Focus() }
 	svc.quit = func() { app.Quit() }
+	svc.openURL = func(u string) { _ = app.Browser.OpenURL(u) }
+
+	// Check for updates shortly after launch, then every 6 hours.
+	go func() {
+		select {
+		case <-app.Context().Done():
+			return
+		case <-time.After(5 * time.Second):
+		}
+		t := time.NewTicker(6 * time.Hour)
+		defer t.Stop()
+		for {
+			if info := svc.CheckUpdate(); info.Available {
+				app.Event.Emit("update:available", info)
+			}
+			select {
+			case <-app.Context().Done():
+				return
+			case <-t.C:
+			}
+		}
+	}()
 
 	var anim struct {
 		sync.Mutex

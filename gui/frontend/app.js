@@ -1,4 +1,4 @@
-import { Call, Events } from "/wails/runtime.js";
+import { Browser, Call, Events } from "/wails/runtime.js";
 
 // ---------------------------------------------------------------- utils
 const isTray = new URLSearchParams(location.search).get("view") === "tray";
@@ -108,12 +108,39 @@ function scanFromSummary(sum) {
 }
 
 // ---------------------------------------------------------------- views: main
+// Scrollable areas whose position must survive a re-render.
+const SCROLLERS = [".main", ".matrix-card", ".logs", ".plist"];
+let lastHTML = "";
+let lastPage = "";
+
 function render() {
   if (!ui.s) return;
-  root.innerHTML = isTray ? trayView() : mainView();
+  const html = isTray ? trayView() : mainView();
+  // Nothing changed: leave the DOM alone (keeps scroll, selection, focus).
+  if (html === lastHTML) return;
+
+  const samePage = lastPage === ui.page;
+  const saved = SCROLLERS.map((sel) => {
+    const el = root.querySelector(sel);
+    return el ? { sel, top: el.scrollTop, left: el.scrollLeft, atBottom: el.scrollTop + el.clientHeight >= el.scrollHeight - 8 } : null;
+  });
+  const logWasAtBottom = saved[2]?.atBottom ?? true;
+
+  root.innerHTML = html;
+  lastHTML = html;
+  lastPage = ui.page;
+
+  if (samePage) {
+    for (const s of saved) {
+      if (!s) continue;
+      const el = root.querySelector(s.sel);
+      if (el) { el.scrollTop = s.top; el.scrollLeft = s.left; }
+    }
+  }
   if (!isTray && ui.page === "logs") {
     const box = document.getElementById("logbox");
-    if (box) box.scrollTop = box.scrollHeight;
+    // Follow new lines only when the user was already at the bottom.
+    if (box && (!samePage || logWasAtBottom)) box.scrollTop = box.scrollHeight;
   }
 }
 
@@ -154,8 +181,11 @@ function panelPage() {
   const ringColor = on ? accent : "#3A3F4B";
   const best = s.lastScan?.results?.[0];
 
-  let banner = "";
-  if (s.error) {
+  let banner = updateBanner(s);
+  if (banner) {
+    // update banner takes the slot; errors still show below
+    if (s.error) banner += `<div class="banner err">${glyph("warn", "#FF8A7A", 22)}<p>${esc(s.error)}</p></div>`;
+  } else if (s.error) {
     banner = `<div class="banner err">${glyph("warn", "#FF8A7A", 22)}<p>${esc(s.error)}</p><button class="btn sm" data-act="page" data-arg="settings">Ayarlar</button></div>`;
   } else if (s.firstRun && !s.scanning) {
     banner = `<div class="banner">${glyph("on", accent, 22)}<p><b>İlk kez mi?</b> Otomatik Bypass ağınızda ~10 saniyede onlarca kombinasyonu dener ve en iyisini seçer.</p>
@@ -208,6 +238,16 @@ function panelPage() {
     <div class="between"><span style="font-size:13px;font-weight:600">Canlı bağlantılar</span>${ui.hosts.length ? '<button class="btn sm" data-act="resetstats">Sıfırla</button>' : ""}</div>
     <div class="hosts">${hosts}</div>
   </section>`;
+}
+
+function updateBanner(s) {
+  const u = s.update;
+  if (!u || !u.available) return "";
+  if (u.installing) {
+    return `<div class="banner">${glyph("on", "var(--accent)", 22)}<p><b>Dikec DPI ${esc(u.latest)} kuruluyor…</b> Uygulama birazdan kapanıp yeni sürümle yeniden açılacak.</p></div>`;
+  }
+  return `<div class="banner">${glyph("on", "var(--accent)", 22)}<p><b>Yeni sürüm: ${esc(u.latest)}</b> · şu an ${esc(u.current)}. ${u.viaBrew ? "Homebrew ile tek tıkla güncellenir; ayarlarınız korunur." : "Sürüm sayfasından indirebilirsiniz."}</p>
+    <button class="btn sm primary" data-act="installupdate">${u.viaBrew ? "Güncelle" : "İndir"}</button><button class="btn sm" data-act="releasenotes">Notlar</button></div>`;
 }
 
 const STAGES = [["baseline", "Bağlantı"], ["dns", "DNS"], ["strategy", "Strateji"], ["dns-mix", "Çapraz"]];
@@ -371,10 +411,19 @@ function settingsPage() {
 
   <section class="card credits">
     <h2 style="margin-bottom:8px">Hakkında</h2>
-    Dikec DPI ${esc(s.version)} · Apache 2.0<br>
+    <div class="row" style="flex-wrap:wrap;margin-bottom:6px">Dikec DPI ${esc(s.version)} · Apache 2.0
+      <button class="btn sm" data-act="checkupdate">Güncellemeleri denetle</button>
+      <span class="muted" style="font-size:12px">${esc(updateStatus(s.update))}</span></div>
     Çekirdek: <b>xvzc/SpoofDPI</b> · Türkiye uyarlaması: <b>renardev/SpoofDPI-Turkiye</b>. Emeği geçen herkese teşekkürler.<br>
     Çıkışta sistem proxy ayarlarınız otomatik olarak geri yüklenir.
   </section>`;
+}
+
+function updateStatus(u) {
+  if (!u || !u.checkedAt || u.checkedAt.startsWith("0001")) return "";
+  if (u.error) return u.error;
+  if (u.available) return `Yeni sürüm var: ${u.latest}`;
+  return `Güncel (${new Date(u.checkedAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} denetlendi)`;
 }
 
 // ---------------------------------------------------------------- views: tray
@@ -406,6 +455,7 @@ function trayView() {
       <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:13px;font-weight:500">Otomatik Bypass</span><span class="muted" style="font-size:11px">${esc(scanLine)}</span></div>
       <button class="btn sm primary" data-act="${s.scanning ? "openmain" : "scan"}">${s.scanning ? "İzle" : "Tara"}</button>
     </div>
+    ${s.update?.available ? `<button class="btn sm primary" data-act="${s.update.installing ? "openmain" : "installupdate"}" style="width:100%">${s.update.installing ? "Güncelleniyor…" : "Yeni sürüm " + esc(s.update.latest) + " · Güncelle"}</button>` : ""}
     <div class="links">
       <button data-act="openmain">Dikec DPI’ı aç <kbd>⌘O</kbd></button>
       <button data-act="quit">Çıkış ve proxy’yi geri al <kbd>⌘Q</kbd></button>
@@ -508,6 +558,22 @@ async function act(name, arg, el) {
     case "openmain":
       await api("OpenMain");
       break;
+    case "checkupdate": {
+      el.disabled = true;
+      const u = await api("CheckUpdate");
+      toast(u.error ? u.error : u.available ? `Yeni sürüm var: ${u.latest}` : "Dikec DPI güncel.", !u.error);
+      await refresh(true);
+      break;
+    }
+    case "installupdate": {
+      const how = await api("InstallUpdate");
+      toast(how === "brew" ? "Güncelleme başladı; uygulama birazdan yeniden açılacak." : "Sürüm sayfası tarayıcıda açıldı.", true);
+      await refresh(true);
+      break;
+    }
+    case "releasenotes":
+      await Browser.OpenURL(ui.s.update.url);
+      break;
     case "quit":
       await api("Quit");
       break;
@@ -583,6 +649,8 @@ Events.On("scan:done", async (ev) => {
   else if (d.summary?.best) toast("Tarama bitti: en iyi ayar bulundu.", true);
   await refresh(true);
 });
+
+Events.On("update:available", () => refresh(true));
 
 Events.On("state:changed", (ev) => {
   ui.s = ev.data;

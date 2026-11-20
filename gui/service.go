@@ -17,6 +17,7 @@ type App struct {
 	mu       sync.Mutex
 	eng      *engine.Engine
 	tun      *tunRunner
+	upd      *updater
 	st       *persisted
 	scanning bool
 	cancel   context.CancelFunc
@@ -25,12 +26,13 @@ type App struct {
 	// hooks set by main
 	onChange func()
 	openMain func()
+	openURL  func(string)
 	quit     func()
 	emit     func(name string, data any)
 }
 
 func NewApp() *App {
-	return &App{eng: engine.New(), tun: newTunRunner(), st: loadState()}
+	return &App{eng: engine.New(), tun: newTunRunner(), upd: newUpdater(), st: loadState()}
 }
 
 func (a *App) isTunLocked() bool { return a.st.Options.AppMode == "tun" }
@@ -73,6 +75,7 @@ type StateView struct {
 	StartOnLaunch bool           `json:"startOnLaunch"`
 	ShowTrayCount bool           `json:"showTrayCount"`
 	FirstRun      bool           `json:"firstRun"`
+	Update        UpdateInfo     `json:"update"`
 	UnblockedNow  int            `json:"unblockedNow"`
 	Error         string         `json:"error"`
 	Version       string         `json:"version"`
@@ -137,6 +140,7 @@ func (a *App) GetState() StateView {
 		StartOnLaunch: a.st.StartOnLaunch,
 		ShowTrayCount: a.st.ShowTrayCount,
 		FirstRun:      !a.st.FirstRunDone,
+		Update:        a.upd.get(),
 		UnblockedNow:  a.unblockedLocked(),
 		Error:         errMsg,
 		Version:       version,
@@ -426,6 +430,32 @@ func (a *App) DismissFirstRun() {
 	a.st.FirstRunDone = true
 	_ = a.st.save()
 	a.mu.Unlock()
+}
+
+// ---- updates ----
+
+// CheckUpdate asks GitHub for the latest release.
+func (a *App) CheckUpdate() UpdateInfo {
+	info := a.upd.check(context.Background())
+	a.changed()
+	return info
+}
+
+// InstallUpdate upgrades via Homebrew (the app restarts), or opens the
+// release page when Dikec DPI was not installed with Homebrew.
+func (a *App) InstallUpdate() (string, error) {
+	err := a.upd.install()
+	if errors.Is(err, errNotBrew) {
+		if a.openURL != nil {
+			a.openURL(a.upd.get().URL)
+		}
+		return "page", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	a.changed()
+	return "brew", nil
 }
 
 // ---- observation ----
