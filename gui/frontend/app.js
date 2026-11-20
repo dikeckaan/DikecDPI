@@ -234,6 +234,7 @@ function mainView() {
           <span style="font-size:13px;font-weight:500">${tun ? esc(t("net.allSystem")) : esc(s.options.listenAddr)}</span>
           <span class="mono muted" style="font-size:11px">${esc(tun ? (s.status.running ? t("net.utun") : t("common.off")) : s.status.systemProxy ? t("net.sysProxy") : (s.status.running ? t("net.manual") : t("common.off")))}</span>
         </div>
+        <button class="ver" data-act="about" title="${esc(t("st.about"))}">v${esc(s.version)}</button>
       </nav>
       <main class="main">${page}</main>
     </div>
@@ -544,6 +545,7 @@ function trayView() {
       <button data-act="openmain">${esc(t("tray.open"))} <kbd>⌘O</kbd></button>
       <button data-act="quit">${esc(t("tray.quit"))} <kbd>⌘Q</kbd></button>
     </div>
+    <span class="ver tray-ver">Dikec DPI v${esc(s.version)}</span>
   </div>`;
 }
 
@@ -555,6 +557,11 @@ async function act(name, arg, el) {
       render(); // switch instantly; data fills in afterwards
       if (arg === "logs" && (await pollLogs())) render();
       else if (arg === "panel" && ui.s.status.running) refresh(true);
+      break;
+    case "about":
+      ui.page = "settings";
+      render();
+      document.querySelector(".credits")?.scrollIntoView({ block: "center" });
       break;
     case "region":
       ui.region = arg;
