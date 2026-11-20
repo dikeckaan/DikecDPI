@@ -77,7 +77,9 @@ function regionName(r) {
 const SINCE_TOKEN = "\u0000since\u0000";
 function withSince(text, ts) {
   const html = esc(text);
-  return html.replace(SINCE_TOKEN, `<span class="since" data-since="${esc(ts)}">${since(ts)}</span>`);
+  // Left empty on purpose: tickSince fills it right after render, so the
+  // HTML does not change from one second to the next.
+  return html.replace(SINCE_TOKEN, `<span class="since" data-since="${esc(ts)}"></span>`);
 }
 function tickSince() {
   for (const el of root.querySelectorAll("[data-since]")) {
@@ -106,11 +108,11 @@ const spinner = '<span class="spin" aria-hidden="true"></span>';
 
 // The "Kesik" mark. state: on | off | warn | busy (slices slide in turn)
 function glyph(state, color, size) {
-  if (state === "busy") {
-    return `<svg class="glyph busy" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">
-      <rect class="s1" x="2" y="3" width="15" height="5" rx="1.2" fill="${color}"/>
-      <rect class="s2" x="5" y="9.5" width="15" height="5" rx="1.2" fill="${color}"/>
-      <rect class="s3" x="8" y="16" width="15" height="5" rx="1.2" fill="${color}"/></svg>`;
+  if (state === "busy" || state === "settle") {
+    return `<svg class="glyph busy ${state === "settle" ? "settle" : ""}" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">
+      <rect class="s1" x="5" y="3" width="15" height="5" rx="1.2" fill="${color}"/>
+      <rect class="s2" x="8" y="9.5" width="15" height="5" rx="1.2" fill="${color}"/>
+      <rect class="s3" x="2" y="16" width="15" height="5" rx="1.2" fill="${color}"/></svg>`;
   }
   const x = state === "off" ? [4.5, 4.5, 4.5] : [5, 8, 2];
   const op = state === "off" ? 0.55 : 1;
@@ -242,8 +244,11 @@ function panelPage() {
   const s = ui.s, st = s.status, on = st.running, tun = s.options.appMode === "tun";
   const accent = "var(--accent)";
   const busy = ui.busy;
-  const ringDash = busy ? "26 29.3" : on ? "46 9.3" : "553 0";
-  const ringColor = busy || on ? accent : "#3A3F4B";
+  const ringDash = on ? "46 9.3" : "553 0";
+  const ringColor = on ? accent : "#3A3F4B";
+  const ring = busy
+    ? `<circle class="ring-arc" cx="98" cy="98" r="88" fill="none" stroke="${busy === "stopping" ? "#6E7582" : accent}" stroke-width="10"/>`
+    : `<circle class="ring-fg" cx="98" cy="98" r="88" fill="none" stroke="${ringColor}" stroke-width="10" stroke-dasharray="${ringDash}" transform="rotate(-90 98 98)"/>`;
   const best = s.lastScan?.results?.[0];
   const error = translateBackend(s.error);
 
@@ -286,17 +291,17 @@ function panelPage() {
     <button class="power ${busy ? "busy " + busy : ""}" data-act="toggle" ${busy ? "disabled" : ""} aria-pressed="${on}" aria-busy="${!!busy}" aria-label="${esc(on ? t("power.off") : t("power.on"))}">
       <svg class="ring" width="196" height="196" viewBox="0 0 196 196" aria-hidden="true">
         <circle cx="98" cy="98" r="88" fill="none" stroke="#1E2129" stroke-width="10"/>
-        <circle class="ring-fg" cx="98" cy="98" r="88" fill="none" stroke="${ringColor}" stroke-width="10" stroke-dasharray="${ringDash}" transform="rotate(-90 98 98)"/>
+        ${ring}
         <circle cx="98" cy="98" r="70" fill="#14161B" stroke="#262A33"/>
       </svg>
-      <span style="position:relative">${glyph(busy ? "busy" : on ? "on" : "off", busy || on ? accent : "#6E7582", 64)}</span>
+      <span style="position:relative">${glyph(busy === "stopping" ? "settle" : busy ? "busy" : on ? "on" : "off", busy === "stopping" ? "#9AA1AE" : busy || on ? accent : "#6E7582", 64)}</span>
     </button>
     <div class="hero-text">
-      <span class="tag ${busy ? "pulse" : ""}" style="color:${busy || on ? accent : "var(--muted)"}">${on && !busy ? withSince(tag, st.since) : esc(tag)}</span>
+      <span class="tag" style="color:${busy === "stopping" ? "var(--muted2)" : busy || on ? accent : "var(--muted)"}">${on && !busy ? withSince(tag, st.since) : esc(tag)}</span>
       <h1>${esc(title)}</h1>
       <p>${esc(body)}</p>
       <div class="row" style="margin-top:6px">
-        <button class="btn ${on && !busy ? "dark" : "primary"}" data-act="toggle" ${busy ? "disabled" : ""}>${busy ? spinner + esc(title) : esc(on ? t("btn.stop") : t("btn.start"))}</button>
+        <button class="btn ${busy ? "busy " + busy : on ? "dark" : "primary"}" data-act="toggle" ${busy ? "disabled" : ""}>${busy ? spinner + esc(title) : esc(on ? t("btn.stop") : t("btn.start"))}</button>
         <button class="btn" data-act="scan" ${s.scanning || busy ? "disabled" : ""}>${I.bolt}${esc(s.lastScan ? t("btn.rescan") : t("btn.autoScan"))}</button>
       </div>
     </div>
@@ -520,7 +525,7 @@ function trayView() {
       ${glyph(busy ? "busy" : error && on ? "warn" : on ? "on" : "off", busy || on ? "var(--accent)" : "#6E7582", 34)}
       <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0">
         <span class="ttl">${esc(title)}</span>
-        <span class="mono ${busy ? "pulse" : ""}" style="font-size:11px;color:${busy || on ? "var(--accent)" : "var(--muted)"}">${on && !busy ? withSince(sub, s.status.since) : esc(sub)}</span>
+        <span class="mono" style="font-size:11px;color:${busy || on ? "var(--accent)" : "var(--muted)"}">${on && !busy ? withSince(sub, s.status.since) : esc(sub)}</span>
       </div>
       <button class="switch ${busy ? "busy" : ""}" role="switch" aria-checked="${busy ? busy === "starting" : on}" aria-busy="${!!busy}" ${busy ? "disabled" : ""} aria-label="${esc(t("tray.toggleAria"))}" data-act="toggle"><span></span></button>
     </div>
