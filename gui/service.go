@@ -168,6 +168,24 @@ func (a *App) unblockedLocked() int {
 
 func (a *App) Start() error {
 	a.mu.Lock()
+	if a.isTunLocked() {
+		// The macOS password dialog can stay open for a long time; never
+		// hold the service lock while it is up, or the UI would freeze.
+		p, o := a.selectedLocked(), a.st.Options
+		a.eng.Stop()
+		a.mu.Unlock()
+		a.changed()
+		err := a.tun.Start(p, o)
+		a.mu.Lock()
+		if err != nil {
+			a.lastErr = err.Error()
+		} else {
+			a.lastErr = ""
+		}
+		a.mu.Unlock()
+		a.changed()
+		return err
+	}
 	defer a.mu.Unlock()
 	err := a.startLocked()
 	a.changed()
@@ -236,6 +254,10 @@ func (a *App) restartIfRunningLocked() error {
 		return nil
 	}
 	a.stopAllLocked()
+	if a.isTunLocked() {
+		go func() { _ = a.Start() }() // asks for the password without the lock
+		return nil
+	}
 	return a.startLocked()
 }
 
@@ -395,10 +417,8 @@ func (a *App) ApplyAuto() error {
 	a.st.SelectedID = a.st.AutoProfile.ID
 	_ = a.st.save()
 	a.stopAllLocked()
-	err := a.startLocked()
 	a.mu.Unlock()
-	a.changed()
-	return err
+	return a.Start()
 }
 
 func (a *App) DismissFirstRun() {

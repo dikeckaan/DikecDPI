@@ -85,9 +85,11 @@ const ui = {
   logs: [],
   logSeq: 0,
   scan: null, // { stage, done, total, message, cells: Map, rows: [], cols: [] }
+  seenCells: new Set(), // matrix cells already shown (so they animate once)
 };
 
 function freshScan() {
+  ui.seenCells = new Set();
   return { stage: "baseline", done: 0, total: 0, message: "Başlatılıyor…", cells: new Map(), rows: [], cols: [] };
 }
 
@@ -240,7 +242,7 @@ function autoPage() {
     const maxMs = Math.max(1, ...(sum.dns || []).filter((d) => d.ok).map((d) => d.avgMillis));
     const dns = (sum.dns || []).map((d) => `<div class="dnsrow"><span class="nm">${esc(d.name)}</span><span class="tr" aria-hidden="true"><span style="width:${d.ok ? Math.max(4, (d.avgMillis / maxMs) * 100) : 0}%"></span></span><span class="ms">${d.ok ? d.avgMillis + " ms" : "yok"}</span></div>`).join("");
     body = `<div class="scan-layout">
-      <div class="card matrix-card" style="flex:1;min-width:0">${matrixView(scan, best)}</div>
+      <div class="card matrix-card">${matrixView(scan, best)}</div>
       <aside class="aside">${winner}
         <div class="card" style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;font-weight:600">DNS yanıt süresi</span>${dns}</div>
         ${targetsCard(sum)}
@@ -252,7 +254,7 @@ function autoPage() {
       <div class="row"><button class="btn primary" data-act="scan">${I.bolt}Taramayı başlat</button><span class="muted" style="font-size:12px">genellikle 10–20 saniye</span></div>
     </div>${targetsCard(null)}`;
   }
-  return `<div class="between" style="align-items:flex-end"><div style="display:flex;flex-direction:column;gap:6px">${head}</div><ol class="stages" aria-label="Tarama aşamaları">${stages}</ol></div>${body}`;
+  return `<div class="page-head"><div>${head}</div><ol class="stages" aria-label="Tarama aşamaları">${stages}</ol></div>${body}`;
 }
 
 function targetsCard(sum) {
@@ -274,15 +276,19 @@ function matrixView(scan, best) {
       const x = scan.cells.get(r + "|" + c);
       if (!x) return `<span class="cell"></span>`;
       const cls = x.passed === x.total ? "p3" : x.passed > 0 ? "p2" : "p0";
-      const txt = x.passed === x.total ? `${x.passed}/${x.total} · ${x.avgMillis}` : x.passed > 0 ? `${x.passed}/${x.total}` : "×";
-      const tip = (x.targets || []).map((t) => `${t.target}: ${t.ok ? "açık" : t.error || "engelli"}`).join("\n");
-      return `<span class="cell ${cls}" title="${esc(tip)}">${txt}</span>`;
+      const txt = x.passed === x.total ? `✓ ${x.avgMillis} ms` : x.passed > 0 ? `${x.passed}/${x.total}` : "×";
+      const tip = [`${r} · ${c}: ${x.passed}/${x.total} site açıldı${x.passed ? `, ort. ${x.avgMillis} ms` : ""}`,
+        ...(x.targets || []).map((t) => `${t.target}: ${t.ok ? "açık" : t.error || "engelli"}`)].join("\n");
+      const key = r + "|" + c + "|" + x.passed;
+      const fresh = scan.stage !== "done" && !ui.seenCells.has(key);
+      ui.seenCells.add(key);
+      return `<span class="cell ${cls}${fresh ? " fresh" : ""}" title="${esc(tip)}">${txt}</span>`;
     }).join("");
     const isBest = r === bestKey;
     return `<div class="mrow" style="--cols:${cols.length}"><span class="name ${isBest ? "best" : ""}">${isBest ? "★ " : ""}${esc(r)}</span>${cells}</div>`;
   }).join("");
   return `<div class="matrix">${head}${rows}
-    <div class="legend"><span><b style="background:var(--accent)"></b>tümü açıldı</span><span><b style="background:var(--accent-mid)"></b>kısmi</span><span><b style="background:var(--line);border:1px solid var(--line3)"></b>engellendi</span><span>boş = denenmedi</span></div></div>`;
+    <div class="legend"><span><b style="background:var(--accent)"></b>tümü açıldı (ort. gecikme)</span><span><b style="background:var(--accent-mid)"></b>kısmi</span><span><b style="background:var(--line);border:1px solid var(--line3)"></b>engellendi</span><span>boş = denenmedi</span></div></div>`;
 }
 
 function profilesPage() {
@@ -298,8 +304,8 @@ function profilesPage() {
       <span class="ds">${esc(p.description)}</span>
     </button>`;
   }).join("");
-  return `<div class="between" style="align-items:flex-end">
-      <div style="display:flex;flex-direction:column;gap:6px"><span class="tag muted">Profiller · ${s.profiles.length} ayar</span><h1>Ülkene göre başla, ağına göre ince ayar yap.</h1></div>
+  return `<div class="page-head">
+      <div><span class="tag muted">Profiller · ${s.profiles.length} ayar</span><h1>Ülkene göre başla, ağına göre ince ayar yap.</h1></div>
       <button class="btn primary" data-act="scan" ${s.scanning ? "disabled" : ""}>${I.bolt}Benim ağımda test et</button>
     </div>
     <div class="tabs" role="tablist" aria-label="Bölge">${tabs}</div>
@@ -317,7 +323,7 @@ function logsPage() {
     const f = Object.entries(l.fields || {}).filter(([k]) => k !== "step").map(([k, v]) => `${k}=${v}`).join(" ");
     return `<div class="log"><span class="t">${t}</span><span class="l ${esc(l.level)}">${esc(l.level)}</span><span class="sc">[${esc(l.scope || "app")}]</span><span>${esc(l.msg)} <span class="f">${esc(f)}</span></span></div>`;
   }).join("");
-  return `<div class="between"><div style="display:flex;flex-direction:column;gap:6px"><span class="tag muted">Kayıt</span><h1>Ne oluyor?</h1></div><span class="muted" style="font-size:12px">Bağlantı başına ayrıntılar Panel’deki istatistiklerde.</span></div>
+  return `<div class="page-head"><div><span class="tag muted">Kayıt</span><h1>Ne oluyor?</h1></div><span class="muted" style="font-size:12px">Bağlantı başına ayrıntılar Panel’deki istatistiklerde.</span></div>
     <div class="logs" id="logbox">${rows || '<div class="empty">Henüz kayıt yok. Korumayı başlatın.</div>'}</div>`;
 }
 
@@ -480,7 +486,8 @@ async function act(name, arg, el) {
       });
       ui.logs = [];
       ui.logSeq = 0;
-      toast("Ayarlar kaydedildi.", true);
+      const mode = document.getElementById("o-mode").value;
+      toast(mode === "tun" ? "TUN modu seçildi. Başlat’a bastığınızda macOS yönetici izni isteyecek." : "Ayarlar kaydedildi.", true);
       await refresh(true);
       break;
     }
@@ -507,6 +514,10 @@ async function act(name, arg, el) {
   }
 }
 
+root.addEventListener("change", (e) => {
+  if (e.target.id === "o-mode") act("saveoptions").catch(() => {});
+});
+
 root.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
   if (!el || el.disabled) return;
@@ -520,6 +531,9 @@ document.addEventListener("keydown", (e) => {
 
 // ---------------------------------------------------------------- data flow
 function editing() {
+  // The settings page holds unsaved form state (selects, switches); only
+  // explicit actions re-render it, never background refreshes.
+  if (!isTray && ui.page === "settings") return true;
   const a = document.activeElement;
   return a && root.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
 }
