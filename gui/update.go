@@ -162,9 +162,23 @@ func updateLogPath() string {
 	return filepath.Join(dir, "DikecDPI", "update.log")
 }
 
-// install upgrades through Homebrew in a detached process: brew quits this
-// app, replaces it, and the script reopens the new version. Homebrew verifies
-// the download's SHA-256 from the tap.
+// updateScript waits for the app (pid) to exit, upgrades the cask and reopens
+// the app. Homebrew refuses to quit an app it is running inside of, so the
+// app quits itself first and the upgrade runs only after it is gone (the
+// script is reparented to launchd by then). Homebrew verifies the
+// download's SHA-256 from the tap.
+func updateScript(brew, openCmd, logFile string, pid int) string {
+	return fmt.Sprintf(
+		`n=0; while kill -0 %d 2>/dev/null && [ $n -lt 150 ]; do sleep 0.2; n=$((n+1)); done; `+
+			`%s update >>%s 2>&1; %s upgrade --cask %s >>%s 2>&1; status=$?; `+
+			`%s; exit $status`,
+		pid,
+		shQuote(brew), shQuote(logFile), shQuote(brew), caskName, shQuote(logFile),
+		openCmd,
+	)
+}
+
+// install starts the detached updater; the caller must then quit the app.
 func (u *updater) install() error {
 	brew := brewPath()
 	if brew == "" || !installedViaBrew() {
@@ -180,10 +194,7 @@ func (u *updater) install() error {
 
 	logFile := updateLogPath()
 	_ = os.MkdirAll(filepath.Dir(logFile), 0o755)
-	script := fmt.Sprintf(
-		`%s update >>%s 2>&1; %s upgrade --cask %s >>%s 2>&1; status=$?; sleep 1; /usr/bin/open -a "Dikec DPI"; exit $status`,
-		shQuote(brew), shQuote(logFile), shQuote(brew), caskName, shQuote(logFile),
-	)
+	script := updateScript(brew, `/usr/bin/open -a "Dikec DPI"`, logFile, os.Getpid())
 	cmd := exec.Command("/bin/sh", "-c", script)
 	// Own process group: it must survive this app being quit by brew.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

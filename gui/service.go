@@ -504,6 +504,14 @@ func (a *App) InstallUpdate() (string, error) {
 		return "", err
 	}
 	a.changed()
+	// Quit shortly (after the UI has shown the message); ServiceShutdown
+	// restores the system proxy / TUN routes, then the updater takes over.
+	go func() {
+		time.Sleep(1200 * time.Millisecond)
+		if a.quit != nil {
+			a.quit()
+		}
+	}()
 	return "brew", nil
 }
 
