@@ -27,6 +27,8 @@ It is not a VPN: your traffic does not go through another server, speed is unaff
 - **🌐 Proxy or TUN.** HTTP/SOCKS5 proxy or TUN mode. TUN routes all system traffic, including apps and games that ignore proxy settings; in the desktop app it is one click away (macOS administrator prompt) and restores the routes when stopped.
 - **🖥️ Menu bar app.** One-click on/off and profile switching. Live connection list, scan matrix and logs. The icon shows state through the position of its slices: aligned = off, offset = active.
 - **🔒 Encrypted DNS.** UDP, DNS-over-HTTPS (Cloudflare, Google, Quad9) or the system resolver. The Türkiye default is Yandex DNS on its alternative port (`77.88.8.8:1253`), because ISPs can hijack port 53.
+- **🗣️ 8 languages.** Türkçe, English, Русский, فارسی, العربية, 简体中文, Bahasa Indonesia, Español; picked from your system language, with right-to-left layout for Persian and Arabic. Translations other than Turkish and English are first drafts: [improvements welcome](../gui/frontend/i18n.js).
+- **🔄 In-app updates.** The app tells you when a new version is out; Homebrew installs update in one click.
 - **🛟 Safe exit.** Your system proxy settings are restored on quit. Even after a crash, the next launch cleans up leftover settings, so your internet is never left broken.
 - **Plus everything from the core:** per-domain rules, TOML config file, fake packet / TTL tricks (with root), UDP support, DNS cache.
 

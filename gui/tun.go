@@ -29,11 +29,12 @@ import (
 //   - the GUI process is gone (quit or crash).
 
 type tunRunner struct {
-	mu      sync.Mutex
-	pid     int
-	since   time.Time
-	profile engine.Profile
-	dir     string
+	mu       sync.Mutex
+	starting bool
+	pid      int
+	since    time.Time
+	profile  engine.Profile
+	dir      string
 }
 
 func newTunRunner() *tunRunner {
@@ -114,10 +115,19 @@ func (t *tunRunner) Start(p engine.Profile, o engine.Options) error {
 		return errors.New("TUN modu masaüstü uygulamasında şimdilik yalnızca macOS'ta destekleniyor; Linux'ta 'sudo dikecdpi --app-mode tun' kullanın")
 	}
 	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.aliveLocked() {
+	if t.aliveLocked() || t.starting {
+		t.mu.Unlock()
 		return nil
 	}
+	t.starting = true
+	t.mu.Unlock()
+	// The password dialog can stay open for minutes: never hold the lock
+	// while it is up, so Status/Running stay instant.
+	defer func() {
+		t.mu.Lock()
+		t.starting = false
+		t.mu.Unlock()
+	}()
 
 	core, err := corePath()
 	if err != nil {
@@ -141,7 +151,7 @@ func (t *tunRunner) Start(p engine.Profile, o engine.Options) error {
 	// directory; it never executes them.
 	script := fmt.Sprintf(
 		`%s >%s 2>&1 & CP=$!; echo $CP >%s; `+
-			`while kill -0 $CP 2>/dev/null && kill -0 %d 2>/dev/null && [ ! -e %s ]; do sleep 1; done; `+
+			`while kill -0 $CP 2>/dev/null && kill -0 %d 2>/dev/null && [ ! -e %s ]; do sleep 0.3; done; `+
 			`kill -INT $CP 2>/dev/null; wait $CP; rm -f %s %s`,
 		strings.Join(quoted, " "), shQuote(logFile), shQuote(pidFile),
 		os.Getpid(), shQuote(stopFile), shQuote(pidFile), shQuote(stopFile),
@@ -160,41 +170,47 @@ func (t *tunRunner) Start(p engine.Profile, o engine.Options) error {
 	}
 
 	// Wait for the core to come up (or fail).
+	pid := 0
 	deadline := time.Now().Add(8 * time.Second)
 	for time.Now().Before(deadline) {
-		if pid := readPid(pidFile); pid > 0 && processAlive(pid) {
-			t.pid = pid
+		if n := readPid(pidFile); n > 0 && processAlive(n) {
+			pid = n
 			if strings.Contains(readFile(logFile), "server started") {
 				break
 			}
-		} else if pid > 0 {
+		} else if n > 0 {
 			break // started and already exited
 		}
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 	}
-	if t.pid == 0 || !processAlive(t.pid) {
-		t.pid = 0
+	if pid == 0 || !processAlive(pid) {
 		return fmt.Errorf("TUN çekirdeği çalışmadı: %s", lastError(readFile(logFile)))
 	}
-	t.since = time.Now()
-	t.profile = p
+	t.mu.Lock()
+	t.pid, t.since, t.profile = pid, time.Now(), p
+	t.mu.Unlock()
 	return nil
 }
 
 func (t *tunRunner) Stop() {
 	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.pid == 0 {
+	pid := t.pid
+	t.mu.Unlock()
+	if pid == 0 {
 		return
 	}
 	_, stopFile, _ := t.paths()
 	_ = os.WriteFile(stopFile, []byte("stop\n"), 0o600)
-	// The watchdog polls every second; the core then restores the routes.
+	// The watchdog polls every 0.3 s; the core then restores the routes.
 	deadline := time.Now().Add(8 * time.Second)
-	for time.Now().Before(deadline) && processAlive(t.pid) {
-		time.Sleep(200 * time.Millisecond)
+	for time.Now().Before(deadline) && processAlive(pid) {
+		time.Sleep(150 * time.Millisecond)
 	}
-	t.pid = 0
+	t.mu.Lock()
+	if t.pid == pid {
+		t.pid = 0
+	}
+	t.mu.Unlock()
 }
 
 func (t *tunRunner) Running() bool {

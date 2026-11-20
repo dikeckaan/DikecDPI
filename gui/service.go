@@ -76,6 +76,7 @@ type StateView struct {
 	ShowTrayCount bool           `json:"showTrayCount"`
 	FirstRun      bool           `json:"firstRun"`
 	Update        UpdateInfo     `json:"update"`
+	Language      string         `json:"language"`
 	UnblockedNow  int            `json:"unblockedNow"`
 	Error         string         `json:"error"`
 	Version       string         `json:"version"`
@@ -141,6 +142,7 @@ func (a *App) GetState() StateView {
 		ShowTrayCount: a.st.ShowTrayCount,
 		FirstRun:      !a.st.FirstRunDone,
 		Update:        a.upd.get(),
+		Language:      a.st.Language,
 		UnblockedNow:  a.unblockedLocked(),
 		Error:         errMsg,
 		Version:       version,
@@ -190,8 +192,32 @@ func (a *App) Start() error {
 		a.changed()
 		return err
 	}
-	defer a.mu.Unlock()
-	err := a.startLocked()
+	if a.eng.Status().Running {
+		a.mu.Unlock()
+		return nil
+	}
+	// Building the config is cheap; starting (listener + networksetup for
+	// the system proxy) takes about a second, so do it without the lock or
+	// every UI poll would stall behind it.
+	cfg, err := engine.BuildConfig(a.selectedLocked(), a.st.Options)
+	listen := a.st.Options.ListenAddr
+	a.mu.Unlock()
+	if err == nil {
+		if a.tun.Running() {
+			a.tun.Stop()
+		}
+		err = a.eng.Start(cfg)
+		if err != nil {
+			err = errors.New(friendlyStartError(err, listen))
+		}
+	}
+	a.mu.Lock()
+	if err != nil {
+		a.lastErr = err.Error()
+	} else {
+		a.lastErr = ""
+	}
+	a.mu.Unlock()
 	a.changed()
 	return err
 }
@@ -239,9 +265,10 @@ func friendlyStartError(err error, addr string) string {
 }
 
 func (a *App) Stop() {
-	a.mu.Lock()
-	a.stopAllLocked()
-	a.mu.Unlock()
+	// Both backends have their own locks; restoring the network settings
+	// can take a moment, so the service lock is not held here.
+	a.tun.Stop()
+	a.eng.Stop()
 	a.changed()
 }
 
@@ -430,6 +457,28 @@ func (a *App) DismissFirstRun() {
 	a.st.FirstRunDone = true
 	_ = a.st.save()
 	a.mu.Unlock()
+}
+
+// SetLanguage stores the UI language (shared by all windows and the native
+// menu bar menu).
+func (a *App) SetLanguage(code string) {
+	if _, ok := nativeText[code]; !ok {
+		code = "en"
+	}
+	a.mu.Lock()
+	a.st.Language = code
+	_ = a.st.save()
+	a.mu.Unlock()
+	a.changed()
+}
+
+func (a *App) lang() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.st.Language == "" {
+		return "tr"
+	}
+	return a.st.Language
 }
 
 // ---- updates ----

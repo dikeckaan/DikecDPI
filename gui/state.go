@@ -22,6 +22,7 @@ type persisted struct {
 	StartOnLaunch bool              `json:"startOnLaunch"`
 	ShowTrayCount bool              `json:"showTrayCount"`
 	FirstRunDone  bool              `json:"firstRunDone"`
+	Language      string            `json:"language,omitempty"`
 	SavedAt       time.Time         `json:"savedAt"`
 	Extra         map[string]string `json:"extra,omitempty"`
 }

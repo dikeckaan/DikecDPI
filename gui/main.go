@@ -124,13 +124,14 @@ func main() {
 	tray.AttachWindow(popover).WindowOffset(6)
 
 	menu := app.NewMenu()
-	toggleItem := menu.Add("Korumayı aç")
+	lang := svc.lang()
+	toggleItem := menu.Add(nt(lang, "on"))
 	toggleItem.OnClick(func(*application.Context) { _ = svc.Toggle() })
-	menu.Add("Dikec DPI’ı aç").
-		OnClick(func(*application.Context) { mainWin.Show(); mainWin.Focus() })
+	openItem := menu.Add(nt(lang, "open"))
+	openItem.OnClick(func(*application.Context) { mainWin.Show(); mainWin.Focus() })
 	menu.AddSeparator()
-	menu.Add("Çıkış ve proxy’yi geri al").
-		OnClick(func(*application.Context) { app.Quit() })
+	quitItem := menu.Add(nt(lang, "quit"))
+	quitItem.OnClick(func(*application.Context) { app.Quit() })
 	tray.SetMenu(menu)
 
 	// ---- wire the service to the shell ----
@@ -185,7 +186,7 @@ func main() {
 					}
 				}(anim.stop)
 			}
-			tray.SetTooltip("Dikec DPI · taranıyor")
+			tray.SetTooltip(nt(st.Language, "tipScan"))
 			return
 		}
 		if anim.stop != nil {
@@ -205,12 +206,15 @@ func main() {
 			label = strconv.Itoa(st.UnblockedNow)
 		}
 		tray.SetLabel(label)
+		lang := st.Language
+		openItem.SetLabel(nt(lang, "open"))
+		quitItem.SetLabel(nt(lang, "quit"))
 		if st.Status.Running {
-			toggleItem.SetLabel("Korumayı kapat")
-			tray.SetTooltip(fmt.Sprintf("Dikec DPI · aktif · %s", st.Selected.Name))
+			toggleItem.SetLabel(nt(lang, "off"))
+			tray.SetTooltip(fmt.Sprintf(nt(lang, "tipOn"), st.Selected.Label))
 		} else {
-			toggleItem.SetLabel("Korumayı aç")
-			tray.SetTooltip("Dikec DPI · kapalı")
+			toggleItem.SetLabel(nt(lang, "on"))
+			tray.SetTooltip(nt(lang, "tipOff"))
 		}
 		menu.Update()
 		app.Event.Emit("state:changed", st)

@@ -27,6 +27,8 @@ VPN değildir: trafiğiniz başka bir sunucuya gitmez, hızınız düşmez, IP a
 - **🌐 Proxy veya TUN.** HTTP/SOCKS5 proxy ya da TUN modu. TUN modu proxy ayarını tanımayan uygulamalar ve oyunlar dahil tüm sistem trafiğini yönlendirir; masaüstü uygulamasından tek tıkla, macOS yönetici izniyle açılır ve durdurunca yönlendirmeleri geri alır.
 - **🖥️ Menü çubuğu uygulaması.** Tek tıkla aç/kapat ve profil değiştirme. Canlı bağlantı listesi, tarama matrisi ve kayıtlar. Simge durumu dilimlerin konumuyla gösterir: hizalı = kapalı, kayık = aktif.
 - **🔒 Şifreli DNS.** UDP, DNS-over-HTTPS (Cloudflare, Google, Quad9) veya sistem DNS'i. Türkiye için varsayılan Yandex DNS'in alternatif portu (`77.88.8.8:1253`), çünkü 53. port operatörlerce ele geçirilebiliyor.
+- **🗣️ 8 dil.** Türkçe, English, Русский, فارسی, العربية, 简体中文, Bahasa Indonesia, Español; sistem dilinden otomatik seçilir, Farsça ve Arapça sağdan sola gösterilir. Türkçe ve İngilizce dışındaki çeviriler ilk taslaktır: [düzeltmelere açığız](gui/frontend/i18n.js).
+- **🔄 Uygulama içi güncelleme.** Yeni sürüm çıkınca uygulama haber verir; Homebrew kurulumlarında tek tıkla güncellenir.
 - **🛟 Güvenli kapanış.** Çıkışta sistem proxy ayarlarınız geri yüklenir. Uygulama çökse bile bir sonraki açılışta kalıntı ayarları temizler, interneti kesik bırakmaz.
 - **Ve çekirdekten gelenler:** alan adına göre kurallar, TOML yapılandırma dosyası, sahte paket / TTL teknikleri (root ile), UDP desteği, DNS önbelleği.
 
