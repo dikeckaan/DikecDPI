@@ -29,7 +29,9 @@ jobs:
 
       - name: Unit tests (core)
         env: { CGO_ENABLED: "0" }
-        run: go test ./internal/config/... ./internal/desync/... ./internal/server/... ./internal/rule/... ./internal/trie/... ./internal/engine/...
+        run: |
+          go test ./internal/config/... ./internal/desync/... ./internal/rule/... ./internal/trie/... ./internal/engine/...
+          go test -count=1 -v -run SystemProxyRoundTrip ./internal/server/
 
       - name: Build CLI
         env: { CGO_ENABLED: "0" }
