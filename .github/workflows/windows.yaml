@@ -1,0 +1,66 @@
+name: Windows
+
+# Builds and exercises Dikec DPI on a real Windows machine: unit tests
+# (including the registry/system-proxy round trip), the CLI as a working
+# proxy, and the desktop app starting up and serving its pass-through port.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  GO_VERSION: "1.26"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            go.sum
+            gui/go.sum
+
+      - name: Unit tests (core)
+        env: { CGO_ENABLED: "0" }
+        run: go test ./internal/config/... ./internal/desync/... ./internal/server/... ./internal/rule/... ./internal/trie/... ./internal/engine/...
+
+      - name: Build CLI
+        env: { CGO_ENABLED: "0" }
+        run: go build -o dikecdpi.exe ./cmd/spoofdpi
+
+      - name: CLI works as a proxy
+        run: |
+          $p = Start-Process -FilePath .\dikecdpi.exe -ArgumentList "--no-tui","--clean","--auto-configure-network=false","--listen-addr","127.0.0.1:18080" -PassThru -RedirectStandardOutput cli.log
+          Start-Sleep -Seconds 4
+          $code = curl.exe -s -m 15 -o NUL -w "%{http_code}" -x http://127.0.0.1:18080 https://www.google.com/
+          Write-Host "through CLI proxy: $code"
+          Stop-Process -Id $p.Id -Force
+          if ($code -ne "200") { Get-Content cli.log; exit 1 }
+
+      - name: GUI unit tests
+        working-directory: gui
+        env: { CGO_ENABLED: "0" }
+        run: go test -run "NewerThan|CoreArgs|SaveTun|GetStateStaysFast" .
+
+      - name: Build desktop app
+        working-directory: gui
+        env: { CGO_ENABLED: "0" }
+        run: go build -tags production -ldflags "-H windowsgui -X main.version=ci" -o DikecDPI.exe .
+
+      - name: Desktop app starts and serves its pass-through port
+        working-directory: gui
+        run: |
+          $p = Start-Process -FilePath .\DikecDPI.exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) { Write-Host "app exited with $($p.ExitCode)"; exit 1 }
+          $code = curl.exe -s -m 15 -o NUL -w "%{http_code}" -x http://127.0.0.1:8080 https://www.google.com/
+          Write-Host "through the app's pass-through: $code"
+          Stop-Process -Id $p.Id -Force
+          if ($code -ne "200") { exit 1 }

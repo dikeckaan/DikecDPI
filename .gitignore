@@ -22,3 +22,4 @@ site/
 
 # Dikec DPI
 gui/dist/
+gui/dist-windows/

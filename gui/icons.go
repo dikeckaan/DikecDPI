@@ -171,3 +171,7 @@ func renderAppIcon(size int) *image.RGBA {
 	}
 	return img
 }
+
+// trayIconColor is used where the tray has no template images (Windows,
+// Linux): the app mark on its dark tile reads on light and dark taskbars.
+var trayIconColor = pngBytes(renderAppIcon(64))

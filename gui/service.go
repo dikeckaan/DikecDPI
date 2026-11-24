@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -35,7 +36,13 @@ type App struct {
 }
 
 func NewApp() *App {
-	return &App{eng: engine.New(), standby: engine.New(), tun: newTunRunner(), upd: newUpdater(), st: loadState()}
+	return &App{
+		eng:     engine.New(),
+		standby: engine.New(),
+		tun:     newTunRunner(),
+		upd:     newUpdater(),
+		st:      loadState(),
+	}
 }
 
 func (a *App) isTunLocked() bool { return a.st.Options.AppMode == "tun" }
@@ -81,6 +88,7 @@ type StateView struct {
 	Update        UpdateInfo     `json:"update"`
 	Language      string         `json:"language"`
 	Standby       bool           `json:"standby"`
+	Platform      string         `json:"platform"`
 	UnblockedNow  int            `json:"unblockedNow"`
 	Error         string         `json:"error"`
 	Version       string         `json:"version"`
@@ -148,6 +156,7 @@ func (a *App) GetState() StateView {
 		Update:        a.upd.get(),
 		Language:      a.st.Language,
 		Standby:       a.standby.Status().Running,
+		Platform:      runtime.GOOS,
 		UnblockedNow:  a.unblockedLocked(),
 		Error:         errMsg,
 		Version:       version,

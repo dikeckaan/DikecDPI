@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/xvzc/spoofdpi/internal/engine"
@@ -46,7 +45,16 @@ func newTunRunner() *tunRunner {
 }
 
 func (t *tunRunner) paths() (pidFile, stopFile, logFile string) {
-	return filepath.Join(t.dir, "core.pid"), filepath.Join(t.dir, "stop"), filepath.Join(t.dir, "core.log")
+	return filepath.Join(
+			t.dir,
+			"core.pid",
+		), filepath.Join(
+			t.dir,
+			"stop",
+		), filepath.Join(
+			t.dir,
+			"core.log",
+		)
 }
 
 // corePath finds the CLI core: inside the .app bundle, else on PATH (dev).
@@ -112,7 +120,9 @@ func asString(s string) string {
 
 func (t *tunRunner) Start(p engine.Profile, o engine.Options) error {
 	if runtime.GOOS != "darwin" {
-		return errors.New("TUN modu masaüstü uygulamasında şimdilik yalnızca macOS'ta destekleniyor; Linux'ta 'sudo dikecdpi --app-mode tun' kullanın")
+		return errors.New(
+			"TUN modu masaüstü uygulamasında şimdilik yalnızca macOS'ta destekleniyor; Linux'ta 'sudo dikecdpi --app-mode tun' kullanın",
+		)
 	}
 	t.mu.Lock()
 	if t.aliveLocked() || t.starting {
@@ -159,7 +169,9 @@ func (t *tunRunner) Start(p engine.Profile, o engine.Options) error {
 	apple := fmt.Sprintf(
 		`do shell script "/bin/sh -c " & quoted form of %s & " >/dev/null 2>&1 &" with administrator privileges with prompt %s`,
 		asString(script),
-		asString("Dikec DPI, TUN modunda tüm sistem trafiğini yönlendirmek için yönetici izni istiyor."),
+		asString(
+			"Dikec DPI, TUN modunda tüm sistem trafiğini yönlendirmek için yönetici izni istiyor.",
+		),
 	)
 	out, err := exec.Command("/usr/bin/osascript", "-e", apple).CombinedOutput()
 	if err != nil {
@@ -281,7 +293,10 @@ func (t *tunRunner) Logs(after uint64) []engine.LogEntry {
 		case strings.HasPrefix(line, "DBG"):
 			level = "debug"
 		}
-		out = append(out, engine.LogEntry{Seq: n, Time: time.Now(), Level: level, Scope: "tun", Msg: line})
+		out = append(
+			out,
+			engine.LogEntry{Seq: n, Time: time.Now(), Level: level, Scope: "tun", Msg: line},
+		)
 	}
 	if n < after {
 		// The log was recreated by a new start: send it from the beginning.
@@ -300,17 +315,12 @@ func readFile(path string) string {
 	return string(b)
 }
 
-// processAlive works for root-owned processes too: EPERM means "exists".
-func processAlive(pid int) bool {
-	err := syscall.Kill(pid, 0)
-	return err == nil || errors.Is(err, syscall.EPERM)
-}
-
 func lastError(log string) string {
 	log = ansi.ReplaceAllString(log, "")
 	lines := strings.Split(strings.TrimSpace(log), "\n")
 	for i := len(lines) - 1; i >= 0; i-- {
-		if strings.Contains(lines[i], "ERR") || strings.Contains(lines[i], "error") || strings.Contains(lines[i], "failed") {
+		if strings.Contains(lines[i], "ERR") || strings.Contains(lines[i], "error") ||
+			strings.Contains(lines[i], "failed") {
 			return strings.TrimSpace(lines[i])
 		}
 	}

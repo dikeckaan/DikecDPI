@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -173,7 +172,11 @@ func updateScript(brew, openCmd, logFile string, pid int) string {
 			`%s update >>%s 2>&1; %s upgrade --cask %s >>%s 2>&1; status=$?; `+
 			`%s; exit $status`,
 		pid,
-		shQuote(brew), shQuote(logFile), shQuote(brew), caskName, shQuote(logFile),
+		shQuote(brew),
+		shQuote(logFile),
+		shQuote(brew),
+		caskName,
+		shQuote(logFile),
 		openCmd,
 	)
 }
@@ -197,7 +200,7 @@ func (u *updater) install() error {
 	script := updateScript(brew, `/usr/bin/open -a "Dikec DPI"`, logFile, os.Getpid())
 	cmd := exec.Command("/bin/sh", "-c", script)
 	// Own process group: it must survive this app being quit by brew.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = detachedProcAttr()
 	cmd.Env = append(os.Environ(), "HOMEBREW_NO_ENV_HINTS=1")
 	if err := cmd.Start(); err != nil {
 		u.mu.Lock()

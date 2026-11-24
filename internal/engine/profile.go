@@ -73,7 +73,7 @@ func DefaultOptions() Options {
 	return Options{
 		ListenAddr:  "127.0.0.1:8080",
 		AppMode:     "http",
-		SystemProxy: runtime.GOOS == "darwin",
+		SystemProxy: runtime.GOOS == "darwin" || runtime.GOOS == "windows",
 		DNSCache:    true,
 	}
 }
@@ -102,7 +102,8 @@ func BuildConfig(p Profile, o Options) (*config.Config, error) {
 		}
 		cfg.App.ListenAddr = *addr
 	}
-	cfg.App.AutoConfigureNetwork = o.SystemProxy && runtime.GOOS == "darwin"
+	cfg.App.AutoConfigureNetwork = o.SystemProxy &&
+		(runtime.GOOS == "darwin" || runtime.GOOS == "windows")
 	cfg.App.NoTUI = true
 	cfg.DNS.Cache = o.DNSCache
 	if o.IPv6 {

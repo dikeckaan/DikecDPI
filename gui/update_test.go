@@ -43,7 +43,13 @@ func TestLiveUpdateCheck(t *testing.T) {
 	if info.Error != "" {
 		t.Skipf("network: %s", info.Error)
 	}
-	t.Logf("latest=%s available=%v viaBrew=%v url=%s", info.Latest, info.Available, info.ViaBrew, info.URL)
+	t.Logf(
+		"latest=%s available=%v viaBrew=%v url=%s",
+		info.Latest,
+		info.Available,
+		info.ViaBrew,
+		info.URL,
+	)
 	if !info.Available {
 		t.Fatalf("1.0.0 should see an update, latest is %s", info.Latest)
 	}
@@ -55,13 +61,21 @@ func TestUpdateScriptOrdering(t *testing.T) {
 	dir := t.TempDir()
 	trace := dir + "/trace"
 	brew := dir + "/brew"
-	_ = os.WriteFile(brew, []byte("#!/bin/sh\necho \"brew $1 $(date +%s%N)\" >> "+shQuote(trace)+"\n"), 0o755)
+	_ = os.WriteFile(
+		brew,
+		[]byte("#!/bin/sh\necho \"brew $1 $(date +%s%N)\" >> "+shQuote(trace)+"\n"),
+		0o755,
+	)
 	app := exec.Command("/bin/sleep", "30")
 	if err := app.Start(); err != nil {
 		t.Fatal(err)
 	}
 	openCmd := "echo open >> " + shQuote(trace)
-	cmd := exec.Command("/bin/sh", "-c", updateScript(brew, openCmd, dir+"/log", app.Process.Pid))
+	cmd := exec.Command(
+		"/bin/sh",
+		"-c",
+		updateScript(brew, openCmd, dir+"/log", app.Process.Pid),
+	)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +90,9 @@ func TestUpdateScriptOrdering(t *testing.T) {
 	}
 	b, _ := os.ReadFile(trace)
 	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
-	if len(lines) != 3 || !strings.HasPrefix(lines[0], "brew update") || !strings.HasPrefix(lines[1], "brew upgrade") || lines[2] != "open" {
+	if len(lines) != 3 || !strings.HasPrefix(lines[0], "brew update") ||
+		!strings.HasPrefix(lines[1], "brew upgrade") ||
+		lines[2] != "open" {
 		t.Fatalf("unexpected order:\n%s", b)
 	}
 }

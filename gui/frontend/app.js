@@ -177,6 +177,8 @@ window.addEventListener("blur", pointerUp);
 
 function render() {
   if (!ui.s) return;
+  // Windows draws its own title bar; macOS uses our inset one.
+  document.body.classList.toggle("win", ui.s.platform === "windows");
   if (pointerDown) { renderPending = true; return; }
   const html = isTray ? trayView() : mainView();
   // Nothing changed: leave the DOM alone (keeps scroll, selection, focus).
@@ -468,8 +470,8 @@ function settingsPage() {
     <h2>${esc(t("st.connection"))}</h2>
     <div class="form">
       <label class="k" for="o-listen">${esc(t("st.listen"))}</label><input type="text" id="o-listen" dir="ltr" value="${esc(o.listenAddr)}" spellcheck="false">
-      <label class="k" for="o-mode">${esc(t("st.mode"))}</label><select id="o-mode">${opt("http", o.appMode || "http", t("st.modeHttp"))}${opt("socks5", o.appMode, t("st.modeSocks"))}${opt("tun", o.appMode, t("st.modeTun"))}</select>
-      <span class="hint">${esc(t("st.tunHint"))}</span>
+      <label class="k" for="o-mode">${esc(t("st.mode"))}</label><select id="o-mode">${opt("http", o.appMode || "http", t("st.modeHttp"))}${opt("socks5", o.appMode, t("st.modeSocks"))}${s.platform === "darwin" ? opt("tun", o.appMode, t("st.modeTun")) : ""}</select>
+      ${s.platform === "darwin" ? `<span class="hint">${esc(t("st.tunHint"))}</span>` : ""}
       <label class="k">${esc(t("st.sysProxy"))}</label><div>${sw("systemProxy", o.systemProxy, t("st.sysProxy"))}</div>
       <span class="hint">${esc(t("st.sysProxyHint", { addr: o.listenAddr }))}</span>
       <label class="k">${esc(t("st.ipv6"))}</label><div>${sw("ipv6", o.ipv6, t("st.ipv6"))}</div>

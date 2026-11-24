@@ -24,6 +24,10 @@ type jobState struct {
 	CreatedAt time.Time    `json:"createdAt"`
 }
 
+// afterNetworkChange runs after jobs were applied or reset; platforms that
+// need to broadcast a settings change (Windows/WinINet) set it.
+var afterNetworkChange = func() {}
+
 // SaveJobs marshals jobs to a JSON state file at path.
 func SaveJobs(path string, jobs []NetworkJob) error {
 	if path == "" {
@@ -74,6 +78,7 @@ func ApplyJobs(logger zerolog.Logger, path string) error {
 		if cmd := job.Apply; cmd != "" {
 			if out, err := executil.Command(cmd); err != nil {
 				ResetJobs(logger, path)
+				afterNetworkChange()
 				return fmt.Errorf(
 					"job %q: %s: %w",
 					job.Description,
@@ -83,6 +88,7 @@ func ApplyJobs(logger zerolog.Logger, path string) error {
 			}
 		}
 	}
+	afterNetworkChange()
 	return nil
 }
 
@@ -109,6 +115,7 @@ func ResetJobs(logger zerolog.Logger, path string) {
 			}
 		}
 	}
+	afterNetworkChange()
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		logger.Warn().Err(err).Msg("failed to delete network state file")
 	}

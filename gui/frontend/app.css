@@ -248,3 +248,7 @@ body.tray { background: transparent; }
 .ver { align-self: flex-start; margin: 8px 0 0 10px; padding: 2px 6px; border: none; border-radius: 6px; background: transparent; font-family: var(--mono); font-size: 10.5px; color: #7A8190; letter-spacing: .2px; }
 button.ver:hover { color: var(--muted2); background: #15171C; }
 .tray-ver { margin: auto 0 0; align-self: center; padding: 0; }
+
+/* ---------- Windows ---------- */
+body.win .titlebar { display: none; }
+body.win .links kbd { display: none; }

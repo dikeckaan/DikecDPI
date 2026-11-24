@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -158,7 +159,7 @@ func main() {
 	})
 
 	tray := app.SystemTray.New()
-	tray.SetTemplateIcon(trayIcons[trayOff])
+	setTrayState(tray, trayOff)
 	tray.SetTooltip("Dikec DPI")
 	tray.AttachWindow(popover).WindowOffset(6)
 
@@ -222,7 +223,7 @@ func main() {
 						case <-stop:
 							return
 						case <-t.C:
-							tray.SetTemplateIcon(trayIcons[frames[i%3]])
+							setTrayState(tray, frames[i%3])
 						}
 					}
 				}(anim.stop)
@@ -236,11 +237,11 @@ func main() {
 		}
 		switch {
 		case st.Status.Running && st.Error != "":
-			tray.SetTemplateIcon(trayIcons[trayWarn])
+			setTrayState(tray, trayWarn)
 		case st.Status.Running:
-			tray.SetTemplateIcon(trayIcons[trayOn])
+			setTrayState(tray, trayOn)
 		default:
-			tray.SetTemplateIcon(trayIcons[trayOff])
+			setTrayState(tray, trayOff)
 		}
 		label := ""
 		if st.Status.Running && st.ShowTrayCount && st.UnblockedNow > 0 {
@@ -295,4 +296,14 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// setTrayState shows the state glyph as a template image on macOS; other
+// systems get the colored app icon (state is in the tooltip and menu).
+func setTrayState(tray *application.SystemTray, s trayState) {
+	if runtime.GOOS == "darwin" {
+		tray.SetTemplateIcon(trayIcons[s])
+		return
+	}
+	tray.SetIcon(trayIconColor)
 }

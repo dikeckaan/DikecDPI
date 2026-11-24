@@ -23,7 +23,10 @@ func TestPinnedClientSurvivesStop(t *testing.T) {
 
 	pu, _ := url.Parse("http://127.0.0.1:18099")
 	get := func() error {
-		c := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{Proxy: http.ProxyURL(pu), DisableKeepAlives: true}}
+		c := &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: &http.Transport{Proxy: http.ProxyURL(pu), DisableKeepAlives: true},
+		}
 		r, err := c.Get("https://www.google.com/")
 		if err == nil {
 			_ = r.Body.Close()
