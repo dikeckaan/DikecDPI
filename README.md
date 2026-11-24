@@ -3,7 +3,7 @@
 # Dikec DPI
 
 **DPI engellerini aşan, ağınızı kendi tarayıp en iyi ayarı seçen proxy.**
-Menü çubuğu uygulaması + komut satırı aracı · macOS, Linux
+Masaüstü uygulaması + komut satırı aracı · macOS, Windows, Linux
 
 [🇬🇧 English](_docs/README_en.md)
 
@@ -68,7 +68,10 @@ brew install dikecdpi
 |---|---|
 | macOS uygulaması (Apple Silicon + Intel) | `DikecDPI-<sürüm>-macos-universal.zip` |
 | macOS komut satırı | `dikecdpi-<sürüm>-darwin-arm64.tar.gz` / `-darwin-amd64` |
+| Windows uygulaması + komut satırı | `DikecDPI-<sürüm>-windows-amd64.zip` (ARM bilgisayarlar için `-arm64`) |
 | Linux | `dikecdpi-<sürüm>-linux-amd64.tar.gz` (ayrıca `arm64`, `arm`, `mipsle`, `riscv64`) |
+
+> **Windows:** Zip'i bir klasöre çıkarıp `DikecDPI.exe`'yi çalıştırın; uygulama görev çubuğunun bildirim alanında yaşar. Komut satırı aracı `cli\dikecdpi.exe`. Uygulama henüz imzalı olmadığı için SmartScreen uyarı verirse **Ek bilgi → Yine de çalıştır**'a tıklayın. Windows'ta TUN modu ve sahte paket kullanan profiller henüz yok; HTTP/SOCKS5 proxy, Otomatik Bypass ve diğer her şey çalışır.
 
 > **macOS uyarısı:** Uygulama henüz Apple tarafından onaylanmadı (notarize edilmedi). İlk açılışta macOS uyarı verirse **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç**'a tıklayın. Bu yalnızca bir kez gerekir.
 
@@ -153,7 +156,7 @@ Dikec DPI, iki açık kaynak projenin omuzlarında duruyor:
 - **[xvzc/SpoofDPI](https://github.com/xvzc/SpoofDPI)**: Projenin çekirdeği. Proxy motoru, parçalama teknikleri, SOCKS5/TUN modları, kural motoru ve çok daha fazlası [@xvzc](https://github.com/xvzc) ve katkıcılarının eseri. Dikec DPI, SpoofDPI v1.6.0'ı temel alır ve upstream ile uyumlu kalacak şekilde geliştirilir. Teşekkürler!
 - **[SpoofDPI-Turkiye](https://github.com/mertikavi/SpoofDPI-Turkiye)** (eski adıyla renardev/SpoofDPI-Turkiye): SpoofDPI'ı Türkiye için yapılandıran, Yandex DNS ayarını ve Türkçe belgeleri getiren ilk uyarlama. Bu proje onun devamı olarak başladı. Teşekkürler!
 
-Windows kullanıcıları için (SpoofDPI v1 çekirdeği Windows'u desteklemiyor) Türkiye'ye özel güzel bir proje: [GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey).
+Windows'ta paket düzeyinde çalışan bir alternatif arayanlar için Türkiye'ye özel güzel bir proje: [GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey).
 
 ## Yasal uyarı
 

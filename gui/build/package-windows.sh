@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 VERSION="${1:-$(cat ../VERSION 2>/dev/null || echo dev)}"
 ARCH="${2:-amd64}"
 OUT="dist-windows"
-rm -rf "$OUT" && mkdir -p "$OUT/DikecDPI/cli"
+rm -rf "$OUT/DikecDPI" && mkdir -p "$OUT/DikecDPI/cli"
 
 # App icon + version info embedded into the .exe (rsrc .syso picked up by go build).
 go run . -render-icon "$OUT/icon.png" -icon-size 256

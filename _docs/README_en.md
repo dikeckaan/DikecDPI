@@ -3,7 +3,7 @@
 # Dikec DPI
 
 **A proxy that gets around DPI censorship, scans your network and picks the best setting by itself.**
-Menu bar app + command-line tool · macOS, Linux
+Desktop app + command-line tool · macOS, Windows, Linux
 
 [🇹🇷 Türkçe](../README.md)
 
@@ -68,7 +68,10 @@ Download the file for your system from [Releases](https://github.com/dikeckaan/D
 |---|---|
 | macOS app (Apple Silicon + Intel) | `DikecDPI-<version>-macos-universal.zip` |
 | macOS CLI | `dikecdpi-<version>-darwin-arm64.tar.gz` / `-darwin-amd64` |
+| Windows app + CLI | `DikecDPI-<version>-windows-amd64.zip` (`-arm64` for ARM PCs) |
 | Linux | `dikecdpi-<version>-linux-amd64.tar.gz` (also `arm64`, `arm`, `mipsle`, `riscv64`) |
+
+> **Windows:** extract the zip to a folder and run `DikecDPI.exe`; the app lives in the notification area of the taskbar. The command-line tool is `cli\dikecdpi.exe`. The app is not signed yet, so if SmartScreen warns, click **More info → Run anyway**. TUN mode and fake-packet profiles are not available on Windows yet; HTTP/SOCKS5 proxy, Auto Bypass and everything else work.
 
 > **macOS note:** the app is not notarized by Apple yet. If macOS warns on first launch, go to **System Settings → Privacy & Security → Open Anyway**. You only need to do this once.
 
@@ -153,7 +156,7 @@ Dikec DPI stands on the shoulders of two open-source projects:
 - **[xvzc/SpoofDPI](https://github.com/xvzc/SpoofDPI)**: the core of this project. The proxy engine, fragmentation techniques, SOCKS5/TUN modes, rule engine and much more are the work of [@xvzc](https://github.com/xvzc) and contributors. Dikec DPI is based on SpoofDPI v1.6.0 and is developed to stay compatible with upstream. Thank you!
 - **[SpoofDPI-Turkiye](https://github.com/mertikavi/SpoofDPI-Turkiye)** (formerly renardev/SpoofDPI-Turkiye): the first adaptation of SpoofDPI for Türkiye, which brought the Yandex DNS setup and Turkish documentation. This project started as its continuation. Thank you!
 
-For Windows users in Türkiye (the SpoofDPI v1 core does not support Windows): [GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey).
+For a packet-level alternative on Windows in Türkiye: [GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey).
 
 ## Disclaimer
 
