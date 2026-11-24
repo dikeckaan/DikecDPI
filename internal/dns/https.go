@@ -16,7 +16,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/xvzc/spoofdpi/internal/config"
 	"github.com/xvzc/spoofdpi/internal/logging"
-	"golang.org/x/net/http2"
 )
 
 type httpsResolver struct {
@@ -39,11 +38,12 @@ func newHTTPSResolver(logger zerolog.Logger, cfg *config.RuntimeConfig) *httpsRe
 		ForceAttemptHTTP2:   true,
 	}
 
-	if err := http2.ConfigureTransport(tr); err != nil {
-		logger.Warn().
-			Err(err).
-			Msg("failed to configure http2 expressly, falling back to default / http/1.1")
-	}
+	// HTTP/2 with HTTP/1.1 fallback (replaces the deprecated
+	// http2.ConfigureTransport).
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+	tr.Protocols = protocols
 
 	return &httpsResolver{
 		logger: logger,

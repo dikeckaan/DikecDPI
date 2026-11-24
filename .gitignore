@@ -23,3 +23,13 @@ site/
 # Dikec DPI
 gui/dist/
 gui/dist-windows/
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/probe/build/
+android/local.properties
+android/app/libs/*.aar
+android/app/libs/*-sources.jar
+*.keystore
+*.jks

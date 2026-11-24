@@ -100,8 +100,55 @@ jobs:
           name: gui-windows
           path: gui/dist-windows/*.zip
 
+  android:
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.meta.outputs.tag }}" }
+      - uses: actions/setup-go@v5
+        with: { go-version: "${{ env.GO_VERSION }}" }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - name: Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.2" "build-tools;36.0.0" "ndk;27.3.13750724" >/dev/null
+      - name: Build the Go core (AAR)
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.3.13750724
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
+          mkdir -p android/app/libs
+          gomobile bind -target=android/arm64,android/arm,android/amd64 -androidapi 26 \
+            -javapkg com.dikec.dpi.core -ldflags "-s -w -X github.com/xvzc/spoofdpi/mobile.version=${VERSION}" \
+            -o android/app/libs/dikecdpi.aar ./mobile
+      - name: Build the APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          DIKEC_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          DIKEC_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          DIKEC_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION: ${{ needs.meta.outputs.version }}
+        working-directory: android
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_B64 not set: skipping the APK (updates need one stable signing key)"
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          export DIKEC_KEYSTORE="$RUNNER_TEMP/release.jks"
+          ./gradlew :app:assembleRelease --console=plain -q
+          cp app/build/outputs/apk/release/app-release.apk "../DikecDPI-${VERSION}-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: DikecDPI-*-android.apk
+          if-no-files-found: ignore
+
   release:
-    needs: [meta, cli, gui-macos]
+    needs: [meta, cli, gui-macos, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

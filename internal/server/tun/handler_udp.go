@@ -18,6 +18,19 @@ type UDPHandler struct {
 	desyncer *desync.UDPDesyncer
 	ruleSet  *rule.RuleSet
 	cfg      *config.RuntimeConfig
+
+	// dnsInterceptor, when set, answers DNS queries (UDP port 53) itself
+	// instead of relaying them to the address the client chose. Used on
+	// mobile, where the OS sends DNS into the tunnel on port 53, which some
+	// ISPs intercept; the interceptor resolves with the profile's resolver.
+	dnsInterceptor func(ctx context.Context, lConn net.Conn, dst *netutil.Destination)
+}
+
+// SetDNSInterceptor makes the handler answer port-53 traffic with fn.
+func (h *UDPHandler) SetDNSInterceptor(
+	fn func(ctx context.Context, lConn net.Conn, dst *netutil.Destination),
+) {
+	h.dnsInterceptor = fn
 }
 
 func NewUDPHandler(
@@ -43,6 +56,11 @@ func (h *UDPHandler) Handle(
 	defer netutil.CloseConns(lConn)
 
 	logger := logging.WithLocalScope(ctx, h.logger, "udp")
+
+	if h.dnsInterceptor != nil && dst.Port == 53 {
+		h.dnsInterceptor(ctx, lConn, dst)
+		return
+	}
 
 	// Addr-based rule matching
 	cfg := h.cfg
