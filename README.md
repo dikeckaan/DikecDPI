@@ -3,7 +3,7 @@
 # Dikec DPI
 
 **DPI engellerini aşan, ağınızı kendi tarayıp en iyi ayarı seçen proxy.**
-Masaüstü uygulaması + komut satırı aracı · macOS, Windows, Linux
+Masaüstü uygulaması + komut satırı aracı · macOS, Windows, Linux, Android, iOS
 
 [🇬🇧 English](_docs/README_en.md)
 
@@ -74,6 +74,20 @@ brew install dikecdpi
 > **Windows:** Zip'i bir klasöre çıkarıp `DikecDPI.exe`'yi çalıştırın; uygulama görev çubuğunun bildirim alanında yaşar. Komut satırı aracı `cli\dikecdpi.exe`. Uygulama henüz imzalı olmadığı için SmartScreen uyarı verirse **Ek bilgi → Yine de çalıştır**'a tıklayın. Windows'ta TUN modu ve sahte paket kullanan profiller henüz yok; HTTP/SOCKS5 proxy, Otomatik Bypass ve diğer her şey çalışır.
 
 > **macOS uyarısı:** Uygulama henüz Apple tarafından onaylanmadı (notarize edilmedi). İlk açılışta macOS uyarı verirse **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç**'a tıklayın. Bu yalnızca bir kez gerekir.
+
+### Android ve iPhone
+
+Telefonlarda Dikec DPI, cihazın kendi VPN arayüzünü kullanır: trafik başka bir sunucuya gitmez, her şey telefonda işlenir. Otomatik Bypass, ülke profilleri ve 8 dil telefonda da var; sahte paket kullanan profiller (root gerektirir) yok.
+
+- **Android (8.0+):** sürüm sayfasındaki `DikecDPI-<sürüm>-android.apk` dosyasını indirip kurun (ilk kurulumda "bilinmeyen kaynaklara izin ver" istenir). İlk açılışta Android VPN izni sorar. Hızlı Ayarlar'a Dikec DPI kutucuğu da eklenebilir.
+- **iPhone (iOS 16+):** Apple, VPN uygulamalarını yalnızca şirket hesaplarıyla App Store'a kabul ettiği için şimdilik kaynaktan Xcode ile kurulur:
+
+  ```bash
+  ios/build.sh          # Go çekirdeğini derler ve Xcode projesini üretir
+  open ios/DikecDPI.xcodeproj
+  ```
+
+  Xcode'da *Signing & Capabilities* altında kendi ekibinizi seçin (Network Extension için ücretli Apple Developer hesabı gerekir), iPhone'unuzu bağlayıp ▶︎ ile çalıştırın.
 
 ### Kaynaktan derleme
 

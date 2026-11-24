@@ -3,7 +3,7 @@
 # Dikec DPI
 
 **A proxy that gets around DPI censorship, scans your network and picks the best setting by itself.**
-Desktop app + command-line tool · macOS, Windows, Linux
+Desktop app + command-line tool · macOS, Windows, Linux, Android, iOS
 
 [🇹🇷 Türkçe](../README.md)
 
@@ -74,6 +74,20 @@ Download the file for your system from [Releases](https://github.com/dikeckaan/D
 > **Windows:** extract the zip to a folder and run `DikecDPI.exe`; the app lives in the notification area of the taskbar. The command-line tool is `cli\dikecdpi.exe`. The app is not signed yet, so if SmartScreen warns, click **More info → Run anyway**. TUN mode and fake-packet profiles are not available on Windows yet; HTTP/SOCKS5 proxy, Auto Bypass and everything else work.
 
 > **macOS note:** the app is not notarized by Apple yet. If macOS warns on first launch, go to **System Settings → Privacy & Security → Open Anyway**. You only need to do this once.
+
+### Android and iPhone
+
+On phones Dikec DPI uses the device's own VPN interface: traffic does not go through another server, everything is handled on the phone. Auto Bypass, country profiles and all 8 languages are there too; fake-packet profiles (which need root) are not.
+
+- **Android (8.0+):** download `DikecDPI-<version>-android.apk` from the release page and install it (the first install asks you to allow unknown sources). Android asks for VPN permission on first start. A Dikec DPI Quick Settings tile is available.
+- **iPhone (iOS 16+):** Apple accepts VPN apps on the App Store only from organization accounts, so for now it is installed from source with Xcode:
+
+  ```bash
+  ios/build.sh          # builds the Go core and generates the Xcode project
+  open ios/DikecDPI.xcodeproj
+  ```
+
+  In Xcode pick your own team under *Signing & Capabilities* (Network Extension needs a paid Apple Developer account), connect your iPhone and press ▶︎.
 
 ### Build from source
 
